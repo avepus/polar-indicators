@@ -8,6 +8,7 @@ Created on Sat 3/26/23
 """
 import unittest
 from datetime import datetime
+from polars import testing
 import polars as pl
 import polars_indicators as pi
 
@@ -22,26 +23,24 @@ COLUMNS = ['Date',
 
 class TestIndicators(unittest.TestCase):
 
-
-    def test_simple_moving_average(self):
-        """tests handling of single ticker df and multi-ticker
-        sma is built in for polars so it is not tested here"""
+    def validate_indicator(self, function, args):
+        """this runs tests that should pass on every indicator
+        it tests that running the indicator adds a single column for that indicator
+        also verifies that running the indicator twice returns the same df the second time"""
         #test single normal case
         single = get_single_symbol_test_df()
 
-        sma_days = 5
-        ret = pi.simple_moving_average(single, sma_days)
+        ret = function(single, **args)
         result = ret.df.columns
         expected = get_columns()[:-1]
         expected.append(ret.column)
 
         self.assertEqual(result, expected)
 
-        #test mult normal case
+        #test multi normal case
         multi = get_multi_symbol_test_df()
 
-        sma_days = 5
-        ret = pi.simple_moving_average(multi, sma_days)
+        ret = function(multi, **args)
         result = ret.df.columns
         expected = get_columns()
         expected.append(ret.column)
@@ -49,12 +48,23 @@ class TestIndicators(unittest.TestCase):
         self.assertEqual(result, expected)
 
         #testing that calling again has doesn't add duplicate column
-        ret = pi.simple_moving_average(ret.df, sma_days)
-        result = ret.df.columns
-        expected = get_columns()
-        expected.append(ret.column)
+        expected = ret.df
+        ret = function(expected, **args)
+        result = ret.df
 
-        self.assertEqual(result, expected)
+        testing.assert_frame_equal(result,expected)
+
+
+    def test_simple_moving_average(self):
+        """tests handling of single ticker df and multi-ticker
+        sma is built in for polars so it is not tested here"""
+        #test single normal case
+        args = {'days': 5}
+        self.validate_indicator(pi.simple_moving_average, args)
+
+
+    def test_crossover(self):
+        pass
 
 
 
@@ -65,12 +75,12 @@ def get_columns():
     return COLUMNS.copy()
 
 def get_single_symbol_test_df():
-    dates = ['2023-01-02', '2023-01-03', '2023-01-04', '2023-01-05', '2023-01-06', '2023-01-09', '2023-01-10', '2023-01-11', '2023-01-12', '2023-01-13', '2023-01-16', '2023-01-17', '2023-01-18', '2023-01-19', '2023-01-20', '2023-01-23', '2023-01-24', '2023-01-25', '2023-01-26', '2023-01-27', '2023-01-30', '2023-01-31', '2023-02-01', '2023-02-02', '2023-02-03', '2023-02-06', '2023-02-07', '2023-02-08', '2023-02-09', '2023-02-10', '2023-02-13', '2023-02-14', '2023-02-15', '2023-02-16', '2023-02-17', '2023-02-20', '2023-02-21', '2023-02-22', '2023-02-23', '2023-02-24', '2023-02-27', '2023-02-28']
+    dates = ['2023-01-02', '2023-01-03', '2023-01-04', '2023-01-05', '2023-01-06', '2023-01-09', '2023-01-10', '2023-01-11', '2023-01-12', '2023-01-13']#, '2023-01-16', '2023-01-17', '2023-01-18', '2023-01-19', '2023-01-20', '2023-01-23', '2023-01-24', '2023-01-25', '2023-01-26', '2023-01-27', '2023-01-30', '2023-01-31']
     df = get_symbol_dataframe('A', dates)
     return df.select(COLUMNS[:-1])
 
 def get_multi_symbol_test_df():
-    dates = ['2023-01-02', '2023-01-03', '2023-01-04', '2023-01-05', '2023-01-06', '2023-01-09', '2023-01-10', '2023-01-11', '2023-01-12', '2023-01-13', '2023-01-16', '2023-01-17', '2023-01-18', '2023-01-19', '2023-01-20', '2023-01-23', '2023-01-24', '2023-01-25', '2023-01-26', '2023-01-27', '2023-01-30', '2023-01-31', '2023-02-01', '2023-02-02', '2023-02-03', '2023-02-06', '2023-02-07', '2023-02-08', '2023-02-09', '2023-02-10', '2023-02-13', '2023-02-14', '2023-02-15', '2023-02-16', '2023-02-17', '2023-02-20', '2023-02-21', '2023-02-22', '2023-02-23', '2023-02-24', '2023-02-27', '2023-02-28']
+    dates = ['2023-01-02', '2023-01-03', '2023-01-04', '2023-01-05', '2023-01-06', '2023-01-09', '2023-01-10', '2023-01-11', '2023-01-12', '2023-01-13']#, '2023-01-16', '2023-01-17', '2023-01-18', '2023-01-19', '2023-01-20', '2023-01-23', '2023-01-24', '2023-01-25', '2023-01-26', '2023-01-27', '2023-01-30', '2023-01-31']
     return get_multi_symbol_df(['A', 'AA'], dates)
 
 def get_multi_symbol_df(symbols: list[str], dates: list[str]):
