@@ -34,9 +34,15 @@ def crossover(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str, direc
     """Adds column indicator crossover of input columns
     Can check if crossover direction of up, down, or both
     direction='' will check either direction
+    This does not handle situations where the values are the same.
+    I.e. the example below would not be considered a crossover
+        day 1: column1 < column2 
+        day 2: column1 == column2
+        day 3: column1 > column2
     THIS DOESN'T CURRENTLY HANDLE MULTISYMBOLDATAFRAMES
     ALSO NEEDS TESTS"""
-    column_name = f'{column1}_crossing_{direction}_over_{column2}'
+
+    column_name = column1 + '_cross_' + (direction + '_' + column2 if direction else column2)
 
     if direction == 'up':
         df = df.with_columns(
