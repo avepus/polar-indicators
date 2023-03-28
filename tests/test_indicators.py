@@ -55,7 +55,7 @@ class TestIndicators(unittest.TestCase):
         testing.assert_frame_equal(result,expected)
 
 
-    def test_simple_moving_average(self):
+    def test_validate_simple_moving_average(self):
         """tests handling of single ticker df and multi-ticker
         sma is built in for polars so it is not tested here"""
         #test single normal case
@@ -63,8 +63,58 @@ class TestIndicators(unittest.TestCase):
         self.validate_indicator(pi.simple_moving_average, args)
 
 
+    def test_validate_crossover(self):
+        args = {'column1': 'Close',
+                'column2': 'Open'}
+        self.validate_indicator(pi.crossover, args)
+
     def test_crossover(self):
-        pass
+        multi = get_multi_symbol_test_df()
+        index_name = 'my_index'
+        column_name = 'test'
+        
+        #this creates a dataframe with a forced cross under on row 4 (index 3)
+        #and a cross up on row 5 (index 4)
+        df = multi.with_row_count(name=index_name).with_columns( 
+                pl.when(
+                    pl.col(index_name) == 3) \
+                    .then(pl.col(index_name) - 1) \
+                .otherwise(
+                    pl.col(index_name) + 1) \
+                .alias(column_name))
+        
+        #test either
+        ret = pi.crossover(df, column_name, index_name)
+        result = ret.df.filter(pl.col(ret.column) == True)[index_name].to_list()
+        expected = [3, 4]
+
+        self.assertEqual(result, expected)
+
+        #test up
+        ret = pi.crossover(df, column_name, index_name, direction='up')
+        result = ret.df.filter(pl.col(ret.column) == True)[index_name].to_list()
+        expected = [4]
+
+        self.assertEqual(result, expected)
+
+        #test down
+        ret = pi.crossover(df, column_name, index_name, direction='down')
+        result = ret.df.filter(pl.col(ret.column) == True)[index_name].to_list()
+        expected = [3]
+
+        self.assertEqual(result, expected)
+
+        #test multisymbols. A crossover should not be logged from end of one sybmol to start of another
+        first_symbol = 3 #left off here need to have this get the symbol from the df
+        df = multi.with_row_count(name=index_name).with_columns( 
+                pl.when(
+                    pl.col(index_name) == 3) \
+                    .then(pl.col(index_name) - 1) \
+                .otherwise(
+                    pl.col(index_name) + 1) \
+                .alias(column_name))
+        
+
 
 
 
@@ -98,7 +148,7 @@ def get_symbol_dataframe(symbol: str, dates: list[str]) -> pl.DataFrame:
                 'High':      [float(i+1) for i in range(list_len)],
                 'Low':       [float(i+1) for i in range(list_len)],
                 'Close':     [float(i+1) for i in range(list_len)],
-                'Adj Close': [float(i+1) for i in range(list_len)],
+                'Adj Close': [float(1) if i == 3 else float(i+1) for i in range(list_len)],
                 'Volume':    [i+1 for i in range(list_len)],
                 'Symbol':    [symbol] * list_len
     }
