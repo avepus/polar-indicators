@@ -105,14 +105,20 @@ class TestIndicators(unittest.TestCase):
         self.assertEqual(result, expected)
 
         #test multisymbols. A crossover should not be logged from end of one sybmol to start of another
-        first_symbol = 3 #left off here need to have this get the symbol from the df
+        first_symbol = multi[pi.SYMBOL_COLUMN].to_list()[0]
         df = multi.with_row_count(name=index_name).with_columns( 
                 pl.when(
-                    pl.col(index_name) == 3) \
-                    .then(pl.col(index_name) - 1) \
+                    pl.col(pi.SYMBOL_COLUMN) == first_symbol) \
+                    .then(pl.col(index_name) + 1) \
                 .otherwise(
-                    pl.col(index_name) + 1) \
+                    pl.col(index_name) - 1) \
                 .alias(column_name))
+        
+        ret = pi.crossover(df, column_name, index_name)
+
+        crossovers = ret.df.filter(pl.col(ret.column) == True)
+
+        self.assertTrue(crossovers.is_empty(), "crossover found between symbols")
         
 
 

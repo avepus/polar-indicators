@@ -9,6 +9,7 @@ Each indicator will also only be added if the column doesn't already exist in th
 from dataclasses import dataclass
 import polars as pl
 
+
 SYMBOL_COLUMN = 'Symbol'
 
 @dataclass
@@ -44,38 +45,49 @@ def crossover(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str, direc
 
     column_name = column1 + '_cross_' + (direction + '_' + column2 if direction else column2)
 
-    if direction == 'up':
-        df = df.with_columns(
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+
+    same_symbol = 'same_symbol'
+    cross_up = 'cross_up'
+    cross_down = 'cross_down'
+
+    new_columns = df.columns.copy()
+    new_columns.append(column_name)
+
+    lf = df.lazy()
+    
+    if SYMBOL_COLUMN in lf.columns:
+        lf = lf.with_columns((pl.col(SYMBOL_COLUMN).shift(1) == pl.col(SYMBOL_COLUMN)).alias(same_symbol))
+    else:
+        lf = lf.with_columns(pl.lit(True).alias(same_symbol))
+
+
+    lf = lf.with_columns(
             (
                 (pl.col(column1) > pl.col(column2))
                 &
                 (pl.col(column1).shift(1) < pl.col(column2).shift(1))
-            ).alias(column_name)
+            ).alias(cross_up)
         )
 
+    lf = lf.with_columns(
+        (
+            (pl.col(column1) < pl.col(column2))
+            &
+            (pl.col(column1).shift(1) > pl.col(column2).shift(1))
+        ).alias(cross_down)
+    )
+
+    if direction == 'up':
+        lf = lf.with_columns((pl.col(cross_up) & pl.col(same_symbol)).alias(column_name))
     elif direction == 'down':
-        df = df.with_columns(
-            (
-                (pl.col(column1) < pl.col(column2))
-                &
-                (pl.col(column1).shift(1) > pl.col(column2).shift(1))
-            ).alias(column_name)
-        )
-
+        lf = lf.with_columns((pl.col(cross_down) & pl.col(same_symbol)).alias(column_name))
     else:
-        df = df.with_columns(
-            (
-                (
-                    (pl.col(column1) > pl.col(column2))
-                    &
-                    (pl.col(column1).shift(1) < pl.col(column2).shift(1))
-                ) | (
-                    (pl.col(column1) < pl.col(column2))
-                    &
-                    (pl.col(column1).shift(1) > pl.col(column2).shift(1))
-                )
-            ).alias(column_name)
-        )
+        lf = lf.with_columns(((pl.col(cross_up) | pl.col(cross_down)) & pl.col(same_symbol)).alias(column_name))
+
+    df = lf.select(new_columns).collect()
+
     return IndicatorResult(df, column_name)
 
 
