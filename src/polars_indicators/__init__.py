@@ -39,9 +39,7 @@ def crossover(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str, direc
     I.e. the example below would not be considered a crossover
         day 1: column1 < column2 
         day 2: column1 == column2
-        day 3: column1 > column2
-    THIS DOESN'T CURRENTLY HANDLE MULTISYMBOLDATAFRAMES
-    ALSO NEEDS TESTS"""
+        day 3: column1 > column2"""
 
     column_name = column1 + '_cross_' + (direction + '_' + column2 if direction else column2)
 
