@@ -127,4 +127,16 @@ def crossover(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str) -> In
     return IndicatorResult(df, column_name)
 
 
+def trailing_stop(df, bars, column = "Low"):
+    """adds column of bool indicating when trailing stop hit"""
+    column_name = f"{bars}_bars_{column}_stop"
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+    
+    df = df.with_columns((pl.col(column) < pl.col(column).rolling_min(bars).shift(1)).alias(column_name))
+
+    return IndicatorResult(df, column_name)
+
+    
+
 

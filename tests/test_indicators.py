@@ -179,7 +179,6 @@ class TestIndicators(unittest.TestCase):
                     pl.col(index_name) + 1) \
                 .alias(column_name))
         
-        #test either
         ret = pi.crossover(df, column_name, index_name)
         result = ret.df.filter(pl.col(ret.column) == True)[index_name].to_list()
         expected = [3, 4]
@@ -201,6 +200,42 @@ class TestIndicators(unittest.TestCase):
         crossovers = ret.df.filter(pl.col(ret.column) == True)
 
         self.assertTrue(crossovers.is_empty(), "crossover found between symbols")
+
+
+    def test_trailing_stop_validate(self):
+        args = {"bars": 2,
+                "column": 'Close'}
+        self.validate_indicator(pi.trailing_stop, args)
+
+    def test_trailing_stop(self):
+        multi = get_multi_symbol_test_df()
+        index_name = 'my_index'
+        column_name = "test"
+        bars = 2
+        not_enough_to_hit_stop = 1
+        enough_to_hit_stop = 3
+
+        df = multi.with_row_count(name=index_name).with_columns( 
+                pl.when(
+                    pl.col(index_name) == 3) \
+                    .then(pl.col(index_name) - not_enough_to_hit_stop) \
+                .when(
+                    (pl.col(index_name) == 6)) \
+                    .then(pl.col(index_name) - enough_to_hit_stop) \
+                .when(
+                    (pl.col(index_name) == 7)) \
+                    .then(pl.col(index_name) - enough_to_hit_stop - enough_to_hit_stop) \
+                .when(
+                    (pl.col(index_name) == 12)) \
+                    .then(pl.col(index_name) - enough_to_hit_stop) \
+                .otherwise(
+                    pl.col(index_name)) \
+                .alias(column_name))
+        
+        ret = pi.trailing_stop(df, bars, column_name)
+        result = ret.df.filter(pl.col(ret.column) == True)[index_name].to_list()
+        expected = [6, 7, 12]
+        self.assertEqual(result, expected)
         
 
 
