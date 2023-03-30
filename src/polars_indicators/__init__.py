@@ -19,7 +19,7 @@ class IndicatorResult:
     df: pl.DataFrame | pl.LazyFrame
     column: str
 
-def simple_moving_average(df: pl.DataFrame | pl.LazyFrame, days: int, column: str='Close') -> pl.DataFrame | pl.LazyFrame:
+def simple_moving_average(df: pl.DataFrame | pl.LazyFrame, days: int, column: str='Close') -> IndicatorResult:
     """returns dataframe with simple moving average added as a column"""
     column_name = 'SMA' + str(days)
     if column_name in df.columns:
@@ -30,25 +30,21 @@ def simple_moving_average(df: pl.DataFrame | pl.LazyFrame, days: int, column: st
         df = df.with_columns(pl.col(column).rolling_mean(days).alias(column_name))
     return IndicatorResult(df, column_name)
 
-
-def crossover(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str, direction: str='') -> pl.DataFrame | pl.LazyFrame:
-    """Adds column indicator crossover of input columns
-    Can check if crossover direction of up, down, or both
-    direction='' will check either direction
+def crossover_up(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str) -> IndicatorResult:
+    """Adds column indicator crossover made by column1 over column2 in the upward direction
     This does not handle situations where the values are the same.
     I.e. the example below would not be considered a crossover
         day 1: column1 < column2 
         day 2: column1 == column2
         day 3: column1 > column2"""
 
-    column_name = column1 + '_cross_' + (direction + '_' + column2 if direction else column2)
+    column_name = column1 + '_cross_up_' + column2
 
     if column_name in df.columns:
         return IndicatorResult(df, column_name)
 
     same_symbol = 'same_symbol'
     cross_up = 'cross_up'
-    cross_down = 'cross_down'
 
     new_columns = df.columns.copy()
     new_columns.append(column_name)
@@ -69,23 +65,62 @@ def crossover(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str, direc
             ).alias(cross_up)
         )
 
-    lf = lf.with_columns(
-        (
-            (pl.col(column1) < pl.col(column2))
-            &
-            (pl.col(column1).shift(1) > pl.col(column2).shift(1))
-        ).alias(cross_down)
-    )
+    lf = lf.with_columns((pl.col(cross_up) & pl.col(same_symbol)).alias(column_name))
+    lf = lf.select(new_columns)
 
-    if direction == 'up':
-        lf = lf.with_columns((pl.col(cross_up) & pl.col(same_symbol)).alias(column_name))
-    elif direction == 'down':
-        lf = lf.with_columns((pl.col(cross_down) & pl.col(same_symbol)).alias(column_name))
+    if isinstance(df, pl.LazyFrame):
+        df = lf
     else:
-        lf = lf.with_columns(((pl.col(cross_up) | pl.col(cross_down)) & pl.col(same_symbol)).alias(column_name))
-
-    df = lf.select(new_columns).collect()
+        df = lf.collect()
 
     return IndicatorResult(df, column_name)
+
+def crossover_down(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str) -> IndicatorResult:
+    """Adds column indicator crossover made by column1 over column2 in the downward direction
+    This does not handle situations where the values are the same.
+    I.e. the example below would not be considered a crossover
+        day 1: column1 < column2 
+        day 2: column1 == column2
+        day 3: column1 > column2"""
+    column_name = column1 + '_cross_down_' + column2
+    cross_up = crossover_up(df, column2, column1) #cross up with columns flipped is the same as cross cown
+
+    #this leaves a corner case where you can add a crossover up for col1 and col2 and then later add a crossover down for col2 and col1. This would rename the first column. The columns are identical though so just don't do that
+    df = cross_up.df.rename({cross_up.column: column_name})
+    return IndicatorResult(df, column_name)
+
+
+def crossover(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str) -> IndicatorResult:
+    """Adds column indicator crossover of input columns
+    This does not handle situations where the values are the same.
+    I.e. the example below would not be considered a crossover
+        day 1: column1 < column2 
+        day 2: column1 == column2
+        day 3: column1 > column2"""
+
+    column_name = column1 + '_cross_' + column2
+
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+
+    new_columns = df.columns.copy()
+    new_columns.append(column_name)
+
+    lf = df.lazy()
+
+    cross_up = crossover_up(lf, column1, column2)
+    cross_down = crossover_down(cross_up.df, column1, column2)
+    
+    lf = cross_down.df.with_columns((pl.col(cross_up.column) | pl.col(cross_down.column)).alias(column_name))
+
+    lf = lf.select(new_columns)
+
+    if isinstance(df, pl.LazyFrame):
+        df = lf
+    else:
+        df = lf.collect()
+
+    return IndicatorResult(df, column_name)
+
 
 

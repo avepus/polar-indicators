@@ -37,6 +37,14 @@ class TestIndicators(unittest.TestCase):
 
         self.assertEqual(result, expected)
 
+        #test sngle LazyFrame
+        single_lf = single.lazy()
+
+        ret = function(single_lf, **args)
+        result = ret.df
+
+        self.assertIsInstance(result, pl.LazyFrame)
+
         #test multi normal case
         multi = get_multi_symbol_test_df()
 
@@ -68,6 +76,84 @@ class TestIndicators(unittest.TestCase):
                 'column2': 'Open'}
         self.validate_indicator(pi.crossover, args)
 
+    
+    def test_crossover_up(self):
+        multi = get_multi_symbol_test_df()
+        index_name = 'my_index'
+        column_name = 'test'
+        
+        #this creates a dataframe with a forced cross under on row 4 (index 3)
+        #and a cross up on row 5 (index 4)
+        df = multi.with_row_count(name=index_name).with_columns( 
+                pl.when(
+                    pl.col(index_name) == 3) \
+                    .then(pl.col(index_name) - 1) \
+                .otherwise(
+                    pl.col(index_name) + 1) \
+                .alias(column_name))
+        
+
+        ret = pi.crossover_up(df, column_name, index_name)
+        result = ret.df.filter(pl.col(ret.column) == True)[index_name].to_list()
+        expected = [4]
+
+        self.assertEqual(result, expected)
+
+        #test multisymbols. A crossover should not be logged from end of one sybmol to start of another
+        first_symbol = multi[pi.SYMBOL_COLUMN].to_list()[0]
+        df = multi.with_row_count(name=index_name).with_columns( 
+                pl.when(
+                    pl.col(pi.SYMBOL_COLUMN) == first_symbol) \
+                    .then(pl.col(index_name) - 1) \
+                .otherwise(
+                    pl.col(index_name) + 1) \
+                .alias(column_name))
+        
+        ret = pi.crossover_up(df, column_name, index_name)
+
+        crossovers = ret.df.filter(pl.col(ret.column) == True)
+
+        self.assertTrue(crossovers.is_empty(), "crossover up found between symbols")
+
+    def test_crossover_down(self):
+        multi = get_multi_symbol_test_df()
+        index_name = 'my_index'
+        column_name = 'test'
+        
+        #this creates a dataframe with a forced cross under on row 4 (index 3)
+        #and a cross up on row 5 (index 4)
+        df = multi.with_row_count(name=index_name).with_columns( 
+                pl.when(
+                    pl.col(index_name) == 3) \
+                    .then(pl.col(index_name) - 1) \
+                .otherwise(
+                    pl.col(index_name) + 1) \
+                .alias(column_name))
+        
+
+        ret = pi.crossover_down(df, column_name, index_name)
+        result = ret.df.filter(pl.col(ret.column) == True)[index_name].to_list()
+        expected = [3]
+
+        self.assertEqual(result, expected)
+
+        #test multisymbols. A crossover should not be logged from end of one sybmol to start of another
+        first_symbol = multi[pi.SYMBOL_COLUMN].to_list()[0]
+        df = multi.with_row_count(name=index_name).with_columns( 
+                pl.when(
+                    pl.col(pi.SYMBOL_COLUMN) == first_symbol) \
+                    .then(pl.col(index_name) + 1) \
+                .otherwise(
+                    pl.col(index_name) - 1) \
+                .alias(column_name))
+        
+        ret = pi.crossover_down(df, column_name, index_name)
+
+        crossovers = ret.df.filter(pl.col(ret.column) == True)
+
+        self.assertTrue(crossovers.is_empty(), "crossover up found between symbols")
+
+
     def test_crossover(self):
         multi = get_multi_symbol_test_df()
         index_name = 'my_index'
@@ -87,20 +173,6 @@ class TestIndicators(unittest.TestCase):
         ret = pi.crossover(df, column_name, index_name)
         result = ret.df.filter(pl.col(ret.column) == True)[index_name].to_list()
         expected = [3, 4]
-
-        self.assertEqual(result, expected)
-
-        #test up
-        ret = pi.crossover(df, column_name, index_name, direction='up')
-        result = ret.df.filter(pl.col(ret.column) == True)[index_name].to_list()
-        expected = [4]
-
-        self.assertEqual(result, expected)
-
-        #test down
-        ret = pi.crossover(df, column_name, index_name, direction='down')
-        result = ret.df.filter(pl.col(ret.column) == True)[index_name].to_list()
-        expected = [3]
 
         self.assertEqual(result, expected)
 
