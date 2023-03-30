@@ -83,6 +83,10 @@ def crossover_down(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str) 
         day 2: column1 == column2
         day 3: column1 > column2"""
     column_name = column1 + '_cross_down_' + column2
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+
+    
     cross_up = crossover_up(df, column2, column1) #cross up with columns flipped is the same as cross cown
 
     #this leaves a corner case where you can add a crossover up for col1 and col2 and then later add a crossover down for col2 and col1. This would rename the first column. The columns are identical though so just don't do that

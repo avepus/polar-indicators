@@ -71,10 +71,10 @@ class TestIndicators(unittest.TestCase):
         self.validate_indicator(pi.simple_moving_average, args)
 
 
-    def test_validate_crossover(self):
+    def test_validate_crossover_up(self):
         args = {'column1': 'Close',
                 'column2': 'Open'}
-        self.validate_indicator(pi.crossover, args)
+        self.validate_indicator(pi.crossover_up, args)
 
     
     def test_crossover_up(self):
@@ -115,6 +115,12 @@ class TestIndicators(unittest.TestCase):
 
         self.assertTrue(crossovers.is_empty(), "crossover up found between symbols")
 
+
+    def test_validate_crossover_down(self):
+        args = {'column1': 'Close',
+                'column2': 'Open'}
+        self.validate_indicator(pi.crossover_down, args)
+        
     def test_crossover_down(self):
         multi = get_multi_symbol_test_df()
         index_name = 'my_index'
@@ -153,6 +159,10 @@ class TestIndicators(unittest.TestCase):
 
         self.assertTrue(crossovers.is_empty(), "crossover up found between symbols")
 
+    def test_validate_crossover(self):
+        args = {'column1': 'Close',
+                'column2': 'Open'}
+        self.validate_indicator(pi.crossover, args)
 
     def test_crossover(self):
         multi = get_multi_symbol_test_df()
