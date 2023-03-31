@@ -138,16 +138,29 @@ def trailing_stop(df: pl.DataFrame | pl.LazyFrame, bars, column = "Low") -> Indi
     return IndicatorResult(df, column_name)
 
 
-def create_trade_ids(df: pl.DataFrame | pl.LazyFrame, column: str) -> IndicatorResult:
+def create_trade_ids(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_column: str) -> IndicatorResult:
     """increments count for each true value in input column
     intended to be used to create IDs for trades"""
-    column_name = f"{column}_trade_ids"
+    column_name = f"{enter_column}/{exit_column}"
     if column_name in df.columns:
         return IndicatorResult(df, column_name)
     
-    df = df.with_columns(pl.col(column).shift(1).cumsum().alias(column_name))
+    df = df.with_columns(pl.col(enter_column).shift(1).cumsum().alias(column_name))
     return IndicatorResult(df, column_name)
     
+def summarize_trades(df: pl.DataFrame | pl.LazyFrame, trade_id_column: str) -> pl.DataFrame | pl.LazyFrame:
+    """summarizes trade information given ids in input column
+    PROTOTYPE. NEEDS MORE WORK AND MAY NOT BE THE DIRECTION I GO"""
+    index_name = "index"
+    df = df.with_row_count(index_name).groupby(trade_id_column).agg(
+              pl.col("Date").min().alias("Start"),
+              pl.col("Date").max().alias("End"),
+              pl.col("Low").min().alias("Lowest"),
+              pl.col("High").max().alias("Highest"),
+              (pl.col(index_name).max() - pl.col(index_name).min() + 1).alias("length")
+    ).sort(trade_id_column)
+
+    return df
     
 
     
