@@ -19,6 +19,7 @@ COLUMNS = ['Date',
            'Close',
            'Adj Close',
            'Volume',
+           'Bool',
            'Symbol']
 
 class TestIndicators(unittest.TestCase):
@@ -82,8 +83,7 @@ class TestIndicators(unittest.TestCase):
         index_name = 'my_index'
         column_name = 'test'
         
-        #this creates a dataframe with a forced cross under on row 4 (index 3)
-        #and a cross up on row 5 (index 4)
+        #this creates a dataframe with a cross up on row 5 (index 4)
         df = multi.with_row_count(name=index_name).with_columns( 
                 pl.when(
                     pl.col(index_name) == 3) \
@@ -127,7 +127,6 @@ class TestIndicators(unittest.TestCase):
         column_name = 'test'
         
         #this creates a dataframe with a forced cross under on row 4 (index 3)
-        #and a cross up on row 5 (index 4)
         df = multi.with_row_count(name=index_name).with_columns( 
                 pl.when(
                     pl.col(index_name) == 3) \
@@ -169,8 +168,7 @@ class TestIndicators(unittest.TestCase):
         index_name = 'my_index'
         column_name = 'test'
         
-        #this creates a dataframe with a forced cross under on row 4 (index 3)
-        #and a cross up on row 5 (index 4)
+        #this creates a dataframe with a forced cross under on row 4 (index 3) and a cross up on row 5 (index 4)
         df = multi.with_row_count(name=index_name).with_columns( 
                 pl.when(
                     pl.col(index_name) == 3) \
@@ -238,6 +236,39 @@ class TestIndicators(unittest.TestCase):
         self.assertEqual(result, expected)
         
 
+    def test_create_trade_ids_validate(self):
+        args = {"column": 'Bool'}
+        self.validate_indicator(pi.create_trade_ids, args)
+
+    def test_create_trade_ids(self):
+        multi = get_multi_symbol_test_df()
+        index_name = 'my_index'
+        column_name = "test"
+
+        df = multi.with_row_count(name=index_name).with_columns( 
+                pl.when(
+                    pl.col(index_name) == 3) \
+                    .then(pl.lit(True)) \
+                .when(
+                    (pl.col(index_name) == 4)) \
+                    .then(pl.lit(True)) \
+                .when(
+                    (pl.col(index_name) == 7)) \
+                    .then(pl.lit(True)) \
+                .otherwise(
+                    pl.lit(False)) \
+                .alias(column_name))
+                
+        df = df.filter(pl.col(index_name) < 10)
+
+        ret = pi.create_trade_ids(df, column_name)
+
+        result = ret.df[ret.column].to_list()
+        expected = [None, 0, 0, 0, 1, 2, 2, 2, 3, 3]
+
+        self.assertEqual(result, expected)
+
+
 
 
 
@@ -273,6 +304,7 @@ def get_symbol_dataframe(symbol: str, dates: list[str]) -> pl.DataFrame:
                 'Close':     [float(i+1) for i in range(list_len)],
                 'Adj Close': [float(1) if i == 3 else float(i+1) for i in range(list_len)],
                 'Volume':    [i+1 for i in range(list_len)],
+                'Bool':      [False] * list_len,
                 'Symbol':    [symbol] * list_len
     }
     df = pl.DataFrame(data)

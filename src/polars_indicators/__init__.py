@@ -127,7 +127,7 @@ def crossover(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str) -> In
     return IndicatorResult(df, column_name)
 
 
-def trailing_stop(df, bars, column = "Low"):
+def trailing_stop(df: pl.DataFrame | pl.LazyFrame, bars, column = "Low") -> IndicatorResult:
     """adds column of bool indicating when trailing stop hit"""
     column_name = f"{bars}_bars_{column}_stop"
     if column_name in df.columns:
@@ -136,6 +136,19 @@ def trailing_stop(df, bars, column = "Low"):
     df = df.with_columns((pl.col(column) < pl.col(column).rolling_min(bars).shift(1)).alias(column_name))
 
     return IndicatorResult(df, column_name)
+
+
+def create_trade_ids(df: pl.DataFrame | pl.LazyFrame, column: str) -> IndicatorResult:
+    """increments count for each true value in input column
+    intended to be used to create IDs for trades"""
+    column_name = f"{column}_trade_ids"
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+    
+    df = df.with_columns(pl.col(column).shift(1).cumsum().alias(column_name))
+    return IndicatorResult(df, column_name)
+    
+    
 
     
 
