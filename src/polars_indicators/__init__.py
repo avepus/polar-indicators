@@ -145,8 +145,13 @@ def create_trade_ids(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_co
     if column_name in df.columns:
         return IndicatorResult(df, column_name)
     
-    df = df.with_columns(pl.col(enter_column).shift(1).cumsum().alias(column_name))
+    exit_ids = 'exit_ids'
+    
+    df = df.with_columns(pl.col(exit_column).cumsum().shift(1).alias(exit_ids))
+
+    df = df.with_columns(pl.when(pl.col(enter_column).max().over(pl.col(exit_ids))).then(pl.col(exit_ids)).alias(column_name))
     return IndicatorResult(df, column_name)
+    
     
 def summarize_trades(df: pl.DataFrame | pl.LazyFrame, trade_id_column: str) -> pl.DataFrame | pl.LazyFrame:
     """summarizes trade information given ids in input column
