@@ -138,7 +138,8 @@ def trailing_stop(df: pl.DataFrame | pl.LazyFrame, bars, column = "Low") -> Indi
     return IndicatorResult(df, column_name)
 
 
-def create_trade_ids(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_column: str) -> IndicatorResult:
+
+def create_trade_ids_old(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_column: str) -> IndicatorResult:
     """increments count for each true value in input column
     intended to be used to create IDs for trades"""
     column_name = f"{enter_column}/{exit_column}"
@@ -151,7 +152,54 @@ def create_trade_ids(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_co
 
     df = df.with_columns(pl.when(pl.col(enter_column).max().over(pl.col(exit_ids))).then(pl.col(exit_ids)).alias(column_name))
     return IndicatorResult(df, column_name)
+
+def create_trade_ids(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_column: str) -> IndicatorResult:
+    """Adds a column that undiquely identifies each trade with an integer
+    All bars of the trade will get a single value.
+    This considers the bars of a trade to be from the first 'True' value in enter_column to the first
+    True in the exit_column on the same or later bar
+    Entries indicated in the enter_column will be ignored if there is already an active trade for that symbol
+        i.e. this can only track one active trade per symbol at a time"""
+    def add_exit_ids(df: pl.DataFrame | pl.LazyFrame, exit_column: str) -> IndicatorResult:
+        """adds a column that counts up on each exit"""
+        column_name = f"{exit_column}_exit_ids"
+        if column_name in df.columns:
+            return IndicatorResult(df, column_name)
+        df = df.with_columns(pl.col(exit_column).cumsum().shift(1).alias(column_name))
+        return IndicatorResult(df, column_name)
+    def add_traded_column(df: pl.DataFrame | pl.LazyFrame, enter_column:str, exit_ids:str) -> IndicatorResult:
+        """adds a column thats true for every bar that has an active trade"""
+        column_name = f"{enter_column}/{exit_ids}_traded"
+        if column_name in df.columns:
+            return IndicatorResult(df, column_name)
+        df = df.with_columns(
+            pl.col(enter_column).max().over(pl.col(exit_ids)).alias(column_name)) #ensures we only count trades with entries
+        return IndicatorResult(df, column_name)
     
+    column_name = f"{enter_column}/{exit_column}"
+    if column_name in df.columns:
+            return IndicatorResult(df, column_name)
+    
+    new_columns = df.columns.copy()
+    new_columns.append(column_name)
+    
+    lf = df.lazy()
+    exit_ids = add_exit_ids(lf, exit_column)
+    traded = add_traded_column(exit_ids.df, enter_column, exit_ids.column)
+
+    lf = traded.df.with_columns(
+        pl.when(
+            pl.col(traded.column) #pl.col(enter_column).max().over(pl.col(exit_ids)) #ensures we only count trades with entries
+            &
+            (pl.col("Date") == pl.col("Date").min().over(exit_ids.column)) #ensures we only count a trade once per exit
+        ).then(1).otherwise(0).alias(column_name))
+    
+    lf = lf.with_columns(pl.when(pl.col(traded.column)).then(pl.col(column_name).cumsum()))
+    lf = lf.select(new_columns)
+
+    df = lf if isinstance(df, pl.LazyFrame) else lf.collect()
+
+    return IndicatorResult(df, column_name)
     
 def summarize_trades(df: pl.DataFrame | pl.LazyFrame, trade_id_column: str) -> pl.DataFrame | pl.LazyFrame:
     """summarizes trade information given ids in input column
