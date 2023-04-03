@@ -237,43 +237,79 @@ class TestIndicators(unittest.TestCase):
         
 
     def test_create_trade_ids_validate(self):
-        args = {"column": 'Bool'}
+        args = {"enter_column": "Bool",
+                "exit_column": "Bool"}
         self.validate_indicator(pi.create_trade_ids, args)
 
+    #kept in case needed later. tests nested add_exit_ids used in create_trade_ids
     def test_create_trade_ids(self):
         multi = get_multi_symbol_test_df()
-        index_name = 'my_index'
-        column_name = "test"
+        index_name = "my_index"
+        enter_column = "enter"
+        enter_indicies = [1, 2, 4, 7]
+        exit_column = "exit"
+        exit_indicies = [3, 4, 6]
 
-        df = multi.with_row_count(name=index_name).with_columns( 
-                pl.when(
-                    pl.col(index_name) == 3) \
-                    .then(pl.lit(True)) \
-                .when(
-                    (pl.col(index_name) == 4)) \
-                    .then(pl.lit(True)) \
-                .when(
-                    (pl.col(index_name) == 7)) \
-                    .then(pl.lit(True)) \
-                .otherwise(
-                    pl.lit(False)) \
-                .alias(column_name))
+        df = add_false_column_with_true_indicies(multi, enter_indicies, enter_column)
+        df = add_false_column_with_true_indicies(df, exit_indicies, exit_column)
                 
-        df = df.filter(pl.col(index_name) < 10)
+        df = df.with_row_count(index_name).filter(pl.col(index_name) < 10)
 
-        ret = pi.create_trade_ids(df, column_name)
+        ret = pi.create_trade_ids(df, enter_column, exit_column)
 
         result = ret.df[ret.column].to_list()
-        expected = [None, 0, 0, 0, 1, 2, 2, 2, 3, 3]
+        expected = [None, 1, 1, 1, 2, None, None, 3, 3, 3]
 
         self.assertEqual(result, expected)
 
 
+    # #kept in case needed later. tests nested add_exit_ids used in create_trade_ids
+    # def test_add_exit_ids(self):
+    #     multi = get_multi_symbol_test_df()
+    #     index_name = 'my_index'
+    #     column_name = "test"
+
+    #     df = multi.with_row_count(name=index_name).with_columns( 
+    #             pl.when(
+    #                 pl.col(index_name) == 3) \
+    #                 .then(pl.lit(True)) \
+    #             .when(
+    #                 (pl.col(index_name) == 4)) \
+    #                 .then(pl.lit(True)) \
+    #             .when(
+    #                 (pl.col(index_name) == 7)) \
+    #                 .then(pl.lit(True)) \
+    #             .otherwise(
+    #                 pl.lit(False)) \
+    #             .alias(column_name))
+                
+    #     df = df.filter(pl.col(index_name) < 10)
+
+    #     ret = pi.create_trade_ids(df, column_name)
+
+    #     result = ret.df[ret.column].to_list()
+    #     expected = [None, 0, 0, 0, 1, 2, 2, 2, 3, 3]
+
+    #     self.assertEqual(result, expected)
 
 
 
 
-#helper test functions        
+
+#helper test functions       
+
+def add_false_column_with_true_indicies(df, indicies: list[int], column: str):
+    index = "index"
+    new_columns = df.columns.copy()
+    new_columns.append(column)
+    return df.with_row_count(name=index).with_columns( 
+            pl.when(
+                pl.col(index).is_in(indicies)) \
+                .then(pl.lit(True)) \
+            .otherwise(
+                pl.lit(False)) \
+            .alias(column)).select(new_columns) 
+
 def get_columns():
     """get columns copy since testing appends"""
     return COLUMNS.copy()

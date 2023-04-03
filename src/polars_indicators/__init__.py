@@ -11,6 +11,7 @@ import polars as pl
 
 
 SYMBOL_COLUMN = 'Symbol'
+DATE_COLUMN = "Date"
 
 @dataclass
 class IndicatorResult:
@@ -173,7 +174,8 @@ def create_trade_ids(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_co
         if column_name in df.columns:
             return IndicatorResult(df, column_name)
         df = df.with_columns(
-            pl.col(enter_column).max().over(pl.col(exit_ids)).alias(column_name)) #ensures we only count trades with entries
+            pl.when(pl.col(DATE_COLUMN) >= pl.when(pl.col(enter_column)).then(pl.col(DATE_COLUMN)).min().over(exit_ids)).then(True) \
+            .alias(column_name))
         return IndicatorResult(df, column_name)
     
     column_name = f"{enter_column}/{exit_column}"
@@ -191,7 +193,7 @@ def create_trade_ids(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_co
         pl.when(
             pl.col(traded.column) #pl.col(enter_column).max().over(pl.col(exit_ids)) #ensures we only count trades with entries
             &
-            (pl.col("Date") == pl.col("Date").min().over(exit_ids.column)) #ensures we only count a trade once per exit
+            (pl.col("Date") == pl.col("Date").min().over(exit_ids.column, traded.column)) #ensures we only count a trade once per exit
         ).then(1).otherwise(0).alias(column_name))
     
     lf = lf.with_columns(pl.when(pl.col(traded.column)).then(pl.col(column_name).cumsum()))
