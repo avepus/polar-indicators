@@ -201,38 +201,32 @@ class TestIndicators(unittest.TestCase):
 
 
     def test_trailing_stop_validate(self):
-        args = {"bars": 2,
-                "column": 'Close'}
+        args = {"bars": 2}
         self.validate_indicator(pi.trailing_stop, args)
 
     def test_trailing_stop(self):
         multi = get_multi_symbol_test_df()
         index_name = 'my_index'
-        column_name = "test"
         bars = 2
-        not_enough_to_hit_stop = 1
-        enough_to_hit_stop = 3
 
-        df = multi.with_row_count(name=index_name).with_columns( 
-                pl.when(
-                    pl.col(index_name) == 3) \
-                    .then(pl.col(index_name) - not_enough_to_hit_stop) \
-                .when(
-                    (pl.col(index_name) == 6)) \
-                    .then(pl.col(index_name) - enough_to_hit_stop) \
-                .when(
-                    (pl.col(index_name) == 7)) \
-                    .then(pl.col(index_name) - enough_to_hit_stop - enough_to_hit_stop) \
-                .when(
-                    (pl.col(index_name) == 12)) \
-                    .then(pl.col(index_name) - enough_to_hit_stop) \
-                .otherwise(
-                    pl.col(index_name)) \
-                .alias(column_name))
+        low_values =  [0, 1, 2, 2, 4, 5, 3, 1, 8, 9, 10, 11, 9]
+        open_values = [3, 4, 5, 6, 7, 8, 9, 1, 10, 11, 12, 13, 14]
+
+        df = multi.slice(0, len(low_values)).select(pl.exclude(pi.LOW_COLUMN, pi.OPEN_COLUMN))
+
+        df = df.insert_at_idx(-1, pl.Series(pi.LOW_COLUMN, low_values, dtype=pl.Float64))
+        df = df.insert_at_idx(-1, pl.Series(pi.OPEN_COLUMN, open_values, dtype=pl.Float64))
         
-        ret = pi.trailing_stop(df, bars, column_name)
-        result = ret.df.filter(pl.col(ret.column) == True)[index_name].to_list()
+        ret = pi.trailing_stop(df, bars)
+
+        #validate the correct indicies got values
+        result = ret.df.with_row_count(index_name).filter(pl.col(ret.column).is_not_null())[index_name].to_list()
         expected = [6, 7, 12]
+        self.assertEqual(result, expected)
+
+        #validate the values are correct
+        result = ret.df.filter(pl.col(ret.column).is_not_null())[ret.column].to_list()
+        expected = [4, 1, 10]
         self.assertEqual(result, expected)
         
 
@@ -245,14 +239,14 @@ class TestIndicators(unittest.TestCase):
         multi = get_multi_symbol_test_df()
         index_name = "my_index"
         enter_column = "enter"
-        enter_indicies = [1, 2, 4, 7]
+        enter_values = [None, 1.2, 1.4, None, 9.9, None, None, 3, None, None]
         exit_column = "exit"
-        exit_indicies = [3, 4, 6]
-
-        df = add_column_with_true_indicies(multi, enter_indicies, enter_column)
-        df = add_column_with_true_indicies(df, exit_indicies, exit_column)
+        exit_values = [0.3, None, None, 0.8, 1.1, None, 2, None, None, None]
                 
-        df = df.with_row_count(index_name).filter(pl.col(index_name) < 10)
+        df = multi.with_row_count(index_name).filter(pl.col(index_name) < 10)
+
+        df = df.insert_at_idx(-1, pl.Series(enter_column, enter_values))
+        df = df.insert_at_idx(-1, pl.Series(exit_column, exit_values))
 
         ret = pi.create_trade_ids(df, enter_column, exit_column)
 
@@ -314,16 +308,16 @@ def get_columns():
     """get columns copy since testing appends"""
     return COLUMNS.copy()
 
-def get_single_symbol_test_df():
+def get_single_symbol_test_df() -> pl.DataFrame:
     dates = ['2023-01-02', '2023-01-03', '2023-01-04', '2023-01-05', '2023-01-06', '2023-01-09', '2023-01-10', '2023-01-11', '2023-01-12', '2023-01-13']#, '2023-01-16', '2023-01-17', '2023-01-18', '2023-01-19', '2023-01-20', '2023-01-23', '2023-01-24', '2023-01-25', '2023-01-26', '2023-01-27', '2023-01-30', '2023-01-31']
     df = get_symbol_dataframe('A', dates)
     return df.select(COLUMNS[:-1])
 
-def get_multi_symbol_test_df():
+def get_multi_symbol_test_df() -> pl.DataFrame:
     dates = ['2023-01-02', '2023-01-03', '2023-01-04', '2023-01-05', '2023-01-06', '2023-01-09', '2023-01-10', '2023-01-11', '2023-01-12', '2023-01-13']#, '2023-01-16', '2023-01-17', '2023-01-18', '2023-01-19', '2023-01-20', '2023-01-23', '2023-01-24', '2023-01-25', '2023-01-26', '2023-01-27', '2023-01-30', '2023-01-31']
     return get_multi_symbol_df(['A', 'AA'], dates)
 
-def get_multi_symbol_df(symbols: list[str], dates: list[str]):
+def get_multi_symbol_df(symbols: list[str], dates: list[str]) -> pl.DataFrame:
     df_list = []
     for symbol in symbols:
         df_list.append(get_symbol_dataframe(symbol, dates))

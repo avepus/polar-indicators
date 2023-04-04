@@ -10,8 +10,11 @@ from dataclasses import dataclass
 import polars as pl
 
 
-SYMBOL_COLUMN = 'Symbol'
+SYMBOL_COLUMN = "Symbol"
 DATE_COLUMN = "Date"
+LOW_COLUMN = "Low"
+HIGH_COLUMN = "High"
+OPEN_COLUMN = "Open"
 
 @dataclass
 class IndicatorResult:
@@ -128,13 +131,15 @@ def crossover(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str) -> In
     return IndicatorResult(df, column_name)
 
 
-def trailing_stop(df: pl.DataFrame | pl.LazyFrame, bars, column = "Low") -> IndicatorResult:
-    """adds column of bool indicating when trailing stop hit"""
-    column_name = f"{bars}_bars_{column}_stop"
+def trailing_stop(df: pl.DataFrame | pl.LazyFrame, bars) -> IndicatorResult:
+    """adds column of exit values indicating when trailing stop hit"""
+    column_name = f"{bars}_bar_trailing_stop"
     if column_name in df.columns:
         return IndicatorResult(df, column_name)
     
-    df = df.with_columns((pl.col(column) < pl.col(column).rolling_min(bars).shift(1)).alias(column_name))
+    df = df.with_columns(pl.when(
+        pl.col(LOW_COLUMN) < pl.col(LOW_COLUMN).rolling_min(bars).shift(1)).then( #when our low is less than the trailing stop
+            pl.min(pl.col(LOW_COLUMN).rolling_min(bars).shift(1), pl.col(OPEN_COLUMN))).alias(column_name)) #set the value equal to the minimum of the Open and the trailing stop. This handles cases where we gap below the trailing stop
 
     return IndicatorResult(df, column_name)
 
@@ -142,7 +147,8 @@ def trailing_stop(df: pl.DataFrame | pl.LazyFrame, bars, column = "Low") -> Indi
 
 def create_trade_ids_old(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_column: str) -> IndicatorResult:
     """increments count for each true value in input column
-    intended to be used to create IDs for trades"""
+    intended to be used to create IDs for trades
+    DEAD CODE SHOULD PROBABLY BE REMOVED"""
     column_name = f"{enter_column}/{exit_column}"
     if column_name in df.columns:
         return IndicatorResult(df, column_name)
@@ -166,7 +172,7 @@ def create_trade_ids(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_co
         column_name = f"{exit_column}_exit_ids"
         if column_name in df.columns:
             return IndicatorResult(df, column_name)
-        df = df.with_columns(pl.col(exit_column).cumsum().shift(1).alias(column_name))
+        df = df.with_columns(pl.when(pl.col(exit_column).is_not_null()).then(1).otherwise(0).cumsum().shift(1).alias(column_name))
         return IndicatorResult(df, column_name)
     def add_traded_column(df: pl.DataFrame | pl.LazyFrame, enter_column:str, exit_ids:str) -> IndicatorResult:
         """adds a column thats true for every bar that has an active trade"""
@@ -174,7 +180,7 @@ def create_trade_ids(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_co
         if column_name in df.columns:
             return IndicatorResult(df, column_name)
         df = df.with_columns(
-            pl.when(pl.col(DATE_COLUMN) >= pl.when(pl.col(enter_column)).then(pl.col(DATE_COLUMN)).min().over(exit_ids)).then(True) \
+            pl.when(pl.col(DATE_COLUMN) >= pl.when(pl.col(enter_column).is_not_null()).then(pl.col(DATE_COLUMN)).min().over(exit_ids)).then(True) \
             .alias(column_name))
         return IndicatorResult(df, column_name)
     
@@ -193,7 +199,7 @@ def create_trade_ids(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_co
         pl.when(
             pl.col(traded.column) #pl.col(enter_column).max().over(pl.col(exit_ids)) #ensures we only count trades with entries
             &
-            (pl.col("Date") == pl.col("Date").min().over(exit_ids.column, traded.column)) #ensures we only count a trade once per exit
+            (pl.col(DATE_COLUMN) == pl.col(DATE_COLUMN).min().over(exit_ids.column, traded.column)) #ensures we only count a trade once per exit
         ).then(1).otherwise(0).alias(column_name))
     
     lf = lf.with_columns(pl.when(pl.col(traded.column)).then(pl.col(column_name).cumsum()))
@@ -203,17 +209,34 @@ def create_trade_ids(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_co
 
     return IndicatorResult(df, column_name)
     
-def summarize_trades(df: pl.DataFrame | pl.LazyFrame, trade_id_column: str) -> pl.DataFrame | pl.LazyFrame:
+def summarize_trades(df: pl.DataFrame | pl.LazyFrame, trade_id_column: str, enter_column: str, exit_column: str) -> pl.DataFrame | pl.LazyFrame:
     """summarizes trade information given ids in input column
     PROTOTYPE. NEEDS MORE WORK AND MAY NOT BE THE DIRECTION I GO"""
     index_name = "index"
-    df = df.with_row_count(index_name).groupby(trade_id_column).agg(
-              pl.col("Date").min().alias("Start"),
-              pl.col("Date").max().alias("End"),
-              pl.col("Low").min().alias("Lowest"),
-              pl.col("High").max().alias("Highest"),
-              (pl.col(index_name).max() - pl.col(index_name).min() + 1).alias("length")
+    start = "Start"
+    end = "End"
+    entry_price = "Entry_Price"
+    exit_price = "Exit_Price"
+    length = "Length"
+    df = df.drop_nulls(trade_id_column).with_row_count(index_name).groupby(trade_id_column).agg(
+              pl.col(SYMBOL_COLUMN).min().alias(SYMBOL_COLUMN),
+              pl.col(DATE_COLUMN).min().alias(start),
+              pl.col(DATE_COLUMN).max().alias(end),
+              pl.when(pl.col(DATE_COLUMN) == pl.col(DATE_COLUMN).min()).then(pl.col(enter_column)).min().alias(entry_price),
+              pl.when(pl.col(DATE_COLUMN) == pl.col(DATE_COLUMN).max()).then(pl.col(exit_column)).min().alias(exit_price),
+              pl.col(LOW_COLUMN).min().alias(LOW_COLUMN),
+              pl.col(HIGH_COLUMN).max().alias(HIGH_COLUMN),
+              (pl.col(index_name).max() - pl.col(index_name).min() + 1).alias(length)
     ).sort(trade_id_column)
+
+    net_gain = "Gain/Loss"
+    net_gain_percent = "Gain/Loss%"
+    highest_percent = "Highest%"
+    df = df.with_columns(
+        (pl.col(exit_price) - pl.col(entry_price)).alias(net_gain),
+        ((pl.col(exit_price) - pl.col(entry_price)) / pl.col(entry_price) * 100).alias(net_gain_percent),
+        ((pl.col(HIGH_COLUMN) - pl.col(entry_price)) / pl.col(entry_price) * 100).alias(highest_percent),
+        )
 
     return df
     
