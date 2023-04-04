@@ -241,7 +241,6 @@ class TestIndicators(unittest.TestCase):
                 "exit_column": "Bool"}
         self.validate_indicator(pi.create_trade_ids, args)
 
-    #kept in case needed later. tests nested add_exit_ids used in create_trade_ids
     def test_create_trade_ids(self):
         multi = get_multi_symbol_test_df()
         index_name = "my_index"
@@ -250,8 +249,8 @@ class TestIndicators(unittest.TestCase):
         exit_column = "exit"
         exit_indicies = [3, 4, 6]
 
-        df = add_false_column_with_true_indicies(multi, enter_indicies, enter_column)
-        df = add_false_column_with_true_indicies(df, exit_indicies, exit_column)
+        df = add_column_with_true_indicies(multi, enter_indicies, enter_column)
+        df = add_column_with_true_indicies(df, exit_indicies, exit_column)
                 
         df = df.with_row_count(index_name).filter(pl.col(index_name) < 10)
 
@@ -298,17 +297,18 @@ class TestIndicators(unittest.TestCase):
 
 #helper test functions       
 
-def add_false_column_with_true_indicies(df, indicies: list[int], column: str):
+def add_column_with_true_indicies(df, indicies: list[int], new_column: str):
+    """adds a column where the input list of indicies are True and all other rows are false"""
     index = "index"
     new_columns = df.columns.copy()
-    new_columns.append(column)
+    new_columns.append(new_column)
     return df.with_row_count(name=index).with_columns( 
             pl.when(
                 pl.col(index).is_in(indicies)) \
                 .then(pl.lit(True)) \
             .otherwise(
                 pl.lit(False)) \
-            .alias(column)).select(new_columns) 
+            .alias(new_column)).select(new_columns) 
 
 def get_columns():
     """get columns copy since testing appends"""
