@@ -131,7 +131,7 @@ def crossover(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str) -> In
     return IndicatorResult(df, column_name)
 
 
-def trailing_stop(df: pl.DataFrame | pl.LazyFrame, bars) -> IndicatorResult:
+def trailing_stop(df: pl.DataFrame | pl.LazyFrame, bars: int) -> IndicatorResult:
     """adds column of exit values indicating when trailing stop hit"""
     column_name = f"{bars}_bar_trailing_stop"
     if column_name in df.columns:
@@ -143,6 +143,24 @@ def trailing_stop(df: pl.DataFrame | pl.LazyFrame, bars) -> IndicatorResult:
 
     return IndicatorResult(df, column_name)
 
+
+def targeted_value(df: pl.DataFrame | pl.LazyFrame, targets: str) -> IndicatorResult:
+    """Given a column with target values, adds column with those values if they were hit
+    useful for mocking limit orders"""
+    column_name = f"{targets}_targets"
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+    df = df.with_columns(pl.when(pl.col(targets).is_between(pl.col(LOW_COLUMN), pl.col(HIGH_COLUMN))).then(pl.col(targets)).alias(column_name))
+    return IndicatorResult(df, column_name)
+
+
+def limit_entries(df: pl.DataFrame | pl.LazyFrame, bars: int, entries: str) -> IndicatorResult:
+    """Forces a minimum number of bars between entries"""
+    column_name = f"{bars}_minimum_bars_between"
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+    df = df.with_columns(pl.when(pl.col(targets).is_between(pl.col(LOW_COLUMN), pl.col(HIGH_COLUMN))).then(pl.col(targets)).alias(column_name))
+    return IndicatorResult(df, column_name)
 
 
 def create_trade_ids_old(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_column: str) -> IndicatorResult:

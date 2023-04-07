@@ -255,6 +255,36 @@ class TestIndicators(unittest.TestCase):
 
         self.assertEqual(result, expected)
 
+    def test_validate_targeted_value(self):
+        args = {"targets": "High"}
+        self.validate_indicator(pi.targeted_value, args)
+
+
+    def test_validate_limit_entries(self):
+        args = {"bars": 5,
+                "entries": "High"}
+        self.validate_indicator(pi.limit_entries, args) 
+
+
+    def test_limit_entries(self):
+        multi = get_multi_symbol_test_df()
+        index_name = 'my_index'
+        bars = 2
+
+        enter_column = "enter"
+        enter_values = [None, 1.2, 1.4, 1.9, 9.9, None, None, 3, 2, None]
+        expected_values = [None, 1.2, None, None, 9.9, None, None, 3, None, None]
+                
+        df = multi.with_row_count(index_name).filter(pl.col(index_name) < 10)
+
+        expected = df.clone().insert_at_idx(-1, pl.Series(enter_column, expected_values))
+
+        df = df.clone().insert_at_idx(-1, pl.Series(enter_column, enter_values))
+        result = pi.limit_entries(df, bars).df
+
+        testing.assert_frame_equal(result, expected)
+
+
 
     # #kept in case needed later. tests nested add_exit_ids used in create_trade_ids
     # def test_add_exit_ids(self):
