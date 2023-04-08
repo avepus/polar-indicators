@@ -154,12 +154,39 @@ def targeted_value(df: pl.DataFrame | pl.LazyFrame, targets: str) -> IndicatorRe
     return IndicatorResult(df, column_name)
 
 
+def group_by_bars(df: pl.DataFrame | pl.LazyFrame, nulls: int, column: str) -> IndicatorResult:
+    """groups trades together allowing for a specified number of nulls in each group"""
+    column_name = f"group_{nulls}"
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+    
+    tes = "tes"
+    df = df.with_columns(pl.lit(True).alias(tes))
+    
+    for i in range(1, nulls+1):
+        df = df.with_columns(pl.col(tes) & pl.col(column).shift(i).is_null().alias(tes))
+
+    df = df.with_columns(pl.when(pl.col(tes)).then(1).otherwise(0).cumsum().alias(column_name)) 
+
+    return IndicatorResult(df, column_name)
 def limit_entries(df: pl.DataFrame | pl.LazyFrame, bars: int, entries: str) -> IndicatorResult:
     """Forces a minimum number of bars between entries"""
     column_name = f"{bars}_minimum_bars_between"
     if column_name in df.columns:
         return IndicatorResult(df, column_name)
-    df = df.with_columns(pl.when(pl.col(targets).is_between(pl.col(LOW_COLUMN), pl.col(HIGH_COLUMN))).then(pl.col(targets)).alias(column_name))
+    
+    group = group_by_bars(df, bars, entries)
+
+    ones = "ones"
+
+    df = group.df
+
+    sum = "sum"
+    df = group.df.with_columns(pl.lit(1).alias(ones)).with_columns(pl.col(ones).cumsum().over(group.column).alias(sum))
+
+    df = df.with_columns(pl.when(pl.col(sum) % (bars+1) == 1).then(pl.col(entries)).alias(column_name))
+
+
     return IndicatorResult(df, column_name)
 
 
