@@ -272,17 +272,44 @@ class TestIndicators(unittest.TestCase):
         bars = 2
 
         enter_column = "enter"
-        enter_values = [None, 1.2, 1.4, 1.9, 9.9, None, None, 3, 2, None]
+        enter_values = [None, 1.2, 1.4, 1.9, 9.9, None, None, 3, None, 2]
         expected_values = [None, 1.2, None, None, 9.9, None, None, 3, None, None]
                 
         df = multi.with_row_count(index_name).filter(pl.col(index_name) < 10)
+        df = df.insert_at_idx(len(df.columns), pl.Series(enter_column, enter_values))
 
-        expected = df.clone().insert_at_idx(-1, pl.Series(enter_column, expected_values))
+        expected = df.clone()
 
-        df = df.clone().insert_at_idx(-1, pl.Series(enter_column, enter_values))
-        result = pi.limit_entries(df, bars).df
+        limit = pi.limit_entries(df, bars, enter_column)
+        result = limit.df
+
+        expected = expected.insert_at_idx(len(expected.columns), pl.Series(limit.column, expected_values))
 
         testing.assert_frame_equal(result, expected)
+
+
+    def test_validate_end_of_data_stop(self):
+        args = {}
+        self.validate_indicator(pi.end_of_data_stop, args) 
+
+
+    def test_end_of_data_stop(self):
+        multi = get_multi_symbol_test_df()
+        expected_values = [None] * 20
+        expected_values[9] = 10.0
+        expected_values[19] = 10.0
+
+        eods = pi.end_of_data_stop(multi)
+        result = eods.df
+
+        expected = multi.clone()
+        expected.insert_at_idx(len(expected.columns), pl.Series(eods.column, expected_values))
+
+        testing.assert_frame_equal(result, expected)
+
+
+        
+    
 
 
 

@@ -15,6 +15,7 @@ DATE_COLUMN = "Date"
 LOW_COLUMN = "Low"
 HIGH_COLUMN = "High"
 OPEN_COLUMN = "Open"
+CLOSE_COLUMN = "Close"
 
 @dataclass
 class IndicatorResult:
@@ -143,6 +144,21 @@ def trailing_stop(df: pl.DataFrame | pl.LazyFrame, bars: int) -> IndicatorResult
 
     return IndicatorResult(df, column_name)
 
+
+def end_of_data_stop(df: pl.DataFrame | pl.LazyFrame) -> IndicatorResult:
+    """adds a stop at the close of the last bar of the data"""
+    column_name = f"EOD_Stops"
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+    
+    index_name = "index"
+    if SYMBOL_COLUMN in df.columns:
+        df = df.with_row_count(index_name).with_columns(pl.when(pl.col(index_name) == pl.col(index_name).max().over(SYMBOL_COLUMN)).then(pl.col(CLOSE_COLUMN)).alias(column_name)).select(pl.exclude(index_name))
+    else:
+        df = df.with_row_count(index_name).with_columns(pl.when(pl.col(index_name) == pl.col(index_name).max()).then(pl.col(CLOSE_COLUMN)).alias(column_name)).select(pl.exclude(index_name))
+
+    return IndicatorResult(df, column_name)
+ 
 
 def targeted_value(df: pl.DataFrame | pl.LazyFrame, targets: str) -> IndicatorResult:
     """Given a column with target values, adds column with those values if they were hit
@@ -284,10 +300,12 @@ def summarize_trades(df: pl.DataFrame | pl.LazyFrame, trade_id_column: str, ente
     net_gain = "Gain/Loss"
     net_gain_percent = "Gain/Loss%"
     highest_percent = "Highest%"
+    lowest_percent = "Lowest%"
     df = df.with_columns(
         (pl.col(exit_price) - pl.col(entry_price)).alias(net_gain),
-        ((pl.col(exit_price) - pl.col(entry_price)) / pl.col(entry_price) * 100).alias(net_gain_percent),
-        ((pl.col(HIGH_COLUMN) - pl.col(entry_price)) / pl.col(entry_price) * 100).alias(highest_percent),
+        ((pl.col(exit_price) - pl.col(entry_price)) / pl.col(entry_price) * 100).round(2).alias(net_gain_percent),
+        ((pl.col(HIGH_COLUMN) - pl.col(entry_price)) / pl.col(entry_price) * 100).round(2).alias(highest_percent),
+        ((pl.col(LOW_COLUMN) - pl.col(entry_price)) / pl.col(entry_price) * 100).round(2).alias(lowest_percent),
         )
 
     return df
