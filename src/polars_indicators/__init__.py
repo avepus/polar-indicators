@@ -158,6 +158,22 @@ def end_of_data_stop(df: pl.DataFrame | pl.LazyFrame) -> IndicatorResult:
         df = df.with_row_count(index_name).with_columns(pl.when(pl.col(index_name) == pl.col(index_name).max()).then(pl.col(CLOSE_COLUMN)).alias(column_name)).select(pl.exclude(index_name))
 
     return IndicatorResult(df, column_name)
+
+
+def entry_percentage_stop(df: pl.DataFrame | pl.LazyFrame, percentage: float, entry_column: str) -> IndicatorResult:
+    """Allows for percentage of entry stop
+    will add column if value (100-percentage) / 100 * entry_column hit on the entry bar
+    THIS CAN CREATE A STOP BASED ON AN ENTRY THAT NEVER HAPPENS
+    POTENTIALLY COULD ADDRESS THIS USING add_exit_ids AND ONLY CHECKING
+    THE STOP ON THE FIRST TRADE OF AN EXIT_ID"""
+    column_name = f"Entry_{percentage}%_Stops"
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+    
+    df = df.with_columns((pl.col(entry_column) * ((100+percentage)/100)).alias(column_name))
+    
+    return IndicatorResult(df, column_name)
+
  
 
 def targeted_value(df: pl.DataFrame | pl.LazyFrame, targets: str) -> IndicatorResult:

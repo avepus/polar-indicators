@@ -308,7 +308,30 @@ class TestIndicators(unittest.TestCase):
         testing.assert_frame_equal(result, expected)
 
 
-        
+    def test_validate_entry_percentage_stop(self):
+        args = {"percentage": 10,
+                "entry_column": pi.CLOSE_COLUMN}
+        self.validate_indicator(pi.entry_percentage_stop, args) 
+
+
+    def test_entry_percentage_stop(self):
+        multi = get_multi_symbol_test_df()
+        percentage = -10
+        entry_column = "enter"
+        values = [None] * 20
+        values[2] = 1.0
+        expected_values = [None] * 20
+        expected_values[2] = 0.9
+
+        df = multi.insert_at_idx(len(multi.columns), pl.Series(entry_column, values))
+        expected = df.clone()
+        eps = pi.entry_percentage_stop(df, percentage, entry_column)
+        result = eps.df
+
+        expected.insert_at_idx(len(expected.columns), pl.Series(eps.column, expected_values))
+
+        testing.assert_frame_equal(result, expected)
+
     
 
 
