@@ -316,12 +316,12 @@ class TestIndicators(unittest.TestCase):
 
     def test_entry_percentage_stop(self):
         multi = get_multi_symbol_test_df()
-        percentage = -10
+        percentage = 10
         entry_column = "enter"
         values = [None] * 20
-        values[2] = 1.0
+        values[2] = 3.0
         expected_values = [None] * 20
-        expected_values[2] = 0.9
+        expected_values[2] = 3.3
 
         df = multi.insert_at_idx(len(multi.columns), pl.Series(entry_column, values))
         expected = df.clone()
@@ -329,6 +329,26 @@ class TestIndicators(unittest.TestCase):
         result = eps.df
 
         expected.insert_at_idx(len(expected.columns), pl.Series(eps.column, expected_values))
+        print(result)
+
+        testing.assert_frame_equal(result, expected)
+
+
+        #Negative test
+        multi = get_multi_symbol_test_df()
+        percentage = -10
+        entry_column = "enter"
+        values = [None] * 20
+        values[2] = 3.0
+        expected_values = [None] * 20
+
+        df = multi.insert_at_idx(len(multi.columns), pl.Series(entry_column, values))
+        expected = df.clone()
+        eps = pi.entry_percentage_stop(df, percentage, entry_column)
+        result = eps.df
+
+        expected.insert_at_idx(len(expected.columns), pl.Series(eps.column, expected_values))
+        print(result)
 
         testing.assert_frame_equal(result, expected)
 
@@ -409,7 +429,7 @@ def get_symbol_dataframe(symbol: str, dates: list[str]) -> pl.DataFrame:
     dates = [datetime.strptime(date, '%Y-%m-%d').date() for date in dates]
     data = {    'Date':      dates,
                 'Open':      [float(i+1) for i in range(list_len)],
-                'High':      [float(i+1) for i in range(list_len)],
+                'High':      [float(i+2) for i in range(list_len)],
                 'Low':       [float(i+1) for i in range(list_len)],
                 'Close':     [float(i+1) for i in range(list_len)],
                 'Adj Close': [float(1) if i == 3 else float(i+1) for i in range(list_len)],

@@ -16,6 +16,7 @@ LOW_COLUMN = "Low"
 HIGH_COLUMN = "High"
 OPEN_COLUMN = "Open"
 CLOSE_COLUMN = "Close"
+VOLUMNE_COLUMN = "Volume"
 
 @dataclass
 class IndicatorResult:
@@ -170,7 +171,13 @@ def entry_percentage_stop(df: pl.DataFrame | pl.LazyFrame, percentage: float, en
     if column_name in df.columns:
         return IndicatorResult(df, column_name)
     
-    df = df.with_columns((pl.col(entry_column) * ((100+percentage)/100)).alias(column_name))
+    df = df.with_columns(pl.when(
+        (
+            pl.col(entry_column) * ((100+percentage)/100)).is_between(pl.col(LOW_COLUMN), pl.col(HIGH_COLUMN))
+        ).then(
+            pl.col(entry_column) * ((100+percentage)/100)
+        ).alias(column_name)
+        )
     
     return IndicatorResult(df, column_name)
 
