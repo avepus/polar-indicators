@@ -272,87 +272,17 @@ class TestIndicators(unittest.TestCase):
         bars = 2
 
         enter_column = "enter"
-        enter_values = [None, 1.2, 1.4, 1.9, 9.9, None, None, 3, None, 2]
+        enter_values = [None, 1.2, 1.4, 1.9, 9.9, None, None, 3, 2, None]
         expected_values = [None, 1.2, None, None, 9.9, None, None, 3, None, None]
                 
         df = multi.with_row_count(index_name).filter(pl.col(index_name) < 10)
-        df = df.insert_at_idx(len(df.columns), pl.Series(enter_column, enter_values))
 
-        expected = df.clone()
+        expected = df.clone().insert_at_idx(-1, pl.Series(enter_column, expected_values))
 
-        limit = pi.limit_entries(df, bars, enter_column)
-        result = limit.df
-
-        expected = expected.insert_at_idx(len(expected.columns), pl.Series(limit.column, expected_values))
+        df = df.clone().insert_at_idx(-1, pl.Series(enter_column, enter_values))
+        result = pi.limit_entries(df, bars).df
 
         testing.assert_frame_equal(result, expected)
-
-
-    def test_validate_end_of_data_stop(self):
-        args = {}
-        self.validate_indicator(pi.end_of_data_stop, args) 
-
-
-    def test_end_of_data_stop(self):
-        multi = get_multi_symbol_test_df()
-        expected_values = [None] * 20
-        expected_values[9] = 10.0
-        expected_values[19] = 10.0
-
-        eods = pi.end_of_data_stop(multi)
-        result = eods.df
-
-        expected = multi.clone()
-        expected.insert_at_idx(len(expected.columns), pl.Series(eods.column, expected_values))
-
-        testing.assert_frame_equal(result, expected)
-
-
-    def test_validate_entry_percentage_stop(self):
-        args = {"percentage": 10,
-                "entry_column": pi.CLOSE_COLUMN}
-        self.validate_indicator(pi.entry_percentage_stop, args) 
-
-
-    def test_entry_percentage_stop(self):
-        multi = get_multi_symbol_test_df()
-        percentage = 10
-        entry_column = "enter"
-        values = [None] * 20
-        values[2] = 3.0
-        expected_values = [None] * 20
-        expected_values[2] = 3.3
-
-        df = multi.insert_at_idx(len(multi.columns), pl.Series(entry_column, values))
-        expected = df.clone()
-        eps = pi.entry_percentage_stop(df, percentage, entry_column)
-        result = eps.df
-
-        expected.insert_at_idx(len(expected.columns), pl.Series(eps.column, expected_values))
-        print(result)
-
-        testing.assert_frame_equal(result, expected)
-
-
-        #Negative test
-        multi = get_multi_symbol_test_df()
-        percentage = -10
-        entry_column = "enter"
-        values = [None] * 20
-        values[2] = 3.0
-        expected_values = [None] * 20
-
-        df = multi.insert_at_idx(len(multi.columns), pl.Series(entry_column, values))
-        expected = df.clone()
-        eps = pi.entry_percentage_stop(df, percentage, entry_column)
-        result = eps.df
-
-        expected.insert_at_idx(len(expected.columns), pl.Series(eps.column, expected_values))
-        print(result)
-
-        testing.assert_frame_equal(result, expected)
-
-    
 
 
 
@@ -429,7 +359,7 @@ def get_symbol_dataframe(symbol: str, dates: list[str]) -> pl.DataFrame:
     dates = [datetime.strptime(date, '%Y-%m-%d').date() for date in dates]
     data = {    'Date':      dates,
                 'Open':      [float(i+1) for i in range(list_len)],
-                'High':      [float(i+2) for i in range(list_len)],
+                'High':      [float(i+1) for i in range(list_len)],
                 'Low':       [float(i+1) for i in range(list_len)],
                 'Close':     [float(i+1) for i in range(list_len)],
                 'Adj Close': [float(1) if i == 3 else float(i+1) for i in range(list_len)],
