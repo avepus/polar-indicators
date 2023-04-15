@@ -1,9 +1,10 @@
 from datetime import timedelta
 import polars as pl
 import polars_indicators as pi
-from polars_indicators.indicators import IndicatorResult
+from polars_indicators.strategies.strategy_result import StrategyResult
 
-def strategy(df: pl.DataFrame | pl.LazyFrame, lookback: timedelta) -> IndicatorResult:
+
+def strategy(df: pl.DataFrame | pl.LazyFrame, lookback: timedelta) -> StrategyResult:
     """generates trades on input df
     this will filter out all data from before we have a full min from the lookback period
     see polars 'rolling_' documentation for all options"""
@@ -12,6 +13,9 @@ def strategy(df: pl.DataFrame | pl.LazyFrame, lookback: timedelta) -> IndicatorR
     df = df.with_columns(pl.col("Low").rolling_min(lookback, by=pi.indicators.DATE_COLUMN).over(pi.indicators.SYMBOL_COLUMN).alias(weeks_min))
     filter_datetime = df[pi.indicators.DATE_COLUMN].min() + lookback
     df = df.filter(pl.col(pi.indicators.DATE_COLUMN) > filter_datetime) #this filters out data that doesn't have the full lookback
+
+    #magic number should be parameter. filters to make sure we dont get small stuff
+    df = df.filter(pl.col(pi.indicators.CLOSE_COLUMN).mean().over(pi.indicators.SYMBOL_COLUMN) > 10) 
 
     target = pi.indicators.targeted_value(df, weeks_min)
     enter_column = target.column
@@ -32,6 +36,10 @@ def strategy(df: pl.DataFrame | pl.LazyFrame, lookback: timedelta) -> IndicatorR
     exit_column = "exit_column"
     df = df.with_columns(pl.coalesce(pl.col(percentage_stop.column),pl.col(trail.column), pl.col(eod.column)).alias(exit_column))
 
-    return pi.indicators.create_trade_ids(df, enter_column, exit_column)
+    ids = pi.indicators.create_trade_ids(df, enter_column, exit_column)
+
+    df = ids.df
+
+    return StrategyResult(df, enter_column, exit_column, ids.column )
     
         
