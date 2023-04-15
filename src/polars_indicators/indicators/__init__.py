@@ -299,36 +299,3 @@ def create_trade_ids(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_co
     df = lf if isinstance(df, pl.LazyFrame) else lf.collect()
 
     return IndicatorResult(df, column_name)
-    
-def summarize_trades(df: pl.DataFrame | pl.LazyFrame, trade_id_column: str, enter_column: str, exit_column: str) -> pl.DataFrame | pl.LazyFrame:
-    """summarizes trade information given ids in input column
-    PROTOTYPE. NEEDS MORE WORK AND MAY NOT BE THE DIRECTION I GO"""
-    index_name = "index"
-    start = "Start"
-    end = "End"
-    entry_price = "Entry_Price"
-    exit_price = "Exit_Price"
-    length = "Length"
-    df = df.drop_nulls(trade_id_column).with_row_count(index_name).groupby(trade_id_column).agg(
-              pl.col(SYMBOL_COLUMN).min().alias(SYMBOL_COLUMN),
-              pl.col(DATE_COLUMN).min().alias(start),
-              pl.col(DATE_COLUMN).max().alias(end),
-              pl.when(pl.col(DATE_COLUMN) == pl.col(DATE_COLUMN).min()).then(pl.col(enter_column)).min().alias(entry_price),
-              pl.when(pl.col(DATE_COLUMN) == pl.col(DATE_COLUMN).max()).then(pl.col(exit_column)).min().alias(exit_price),
-              pl.col(LOW_COLUMN).min().alias(LOW_COLUMN),
-              pl.col(HIGH_COLUMN).max().alias(HIGH_COLUMN),
-              (pl.col(index_name).max() - pl.col(index_name).min() + 1).alias(length)
-    ).sort(trade_id_column)
-
-    net_gain = "Gain/Loss"
-    net_gain_percent = "Gain/Loss%"
-    highest_percent = "Highest%"
-    lowest_percent = "Lowest%"
-    df = df.with_columns(
-        (pl.col(exit_price) - pl.col(entry_price)).alias(net_gain),
-        ((pl.col(exit_price) - pl.col(entry_price)) / pl.col(entry_price) * 100).round(2).alias(net_gain_percent),
-        ((pl.col(HIGH_COLUMN) - pl.col(entry_price)) / pl.col(entry_price) * 100).round(2).alias(highest_percent),
-        ((pl.col(LOW_COLUMN) - pl.col(entry_price)) / pl.col(entry_price) * 100).round(2).alias(lowest_percent),
-        )
-
-    return df
