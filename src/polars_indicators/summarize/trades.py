@@ -2,13 +2,19 @@
 
 import polars as pl
 import polars_indicators as pi
+from polars_indicators.strategies.strategy_result import StrategyResult
 
 class Trades:
     """represents a summary of trades
     main purpose is to further summarize the trades"""
 
+    @classmethod
+    def from_strategy_result(cls, strategy_result: StrategyResult, additional_columns=[]):
+        """constructs instance of class from a StrategyResult"""
+        return cls(strategy_result.df, strategy_result.ids_column, strategy_result.entry_column, strategy_result.exit_column, additional_columns)
 
-    def __init__(self, df: pl.DataFrame | pl.LazyFrame, trade_id_column: str, enter_column: str, exit_column: str, additional_columns: list[str]) -> pl.DataFrame | pl.LazyFrame:
+
+    def __init__(self, df: pl.DataFrame | pl.LazyFrame, trade_id_column: str, enter_column: str, exit_column: str, additional_columns: list[str] = []) -> pl.DataFrame | pl.LazyFrame:
         """summarizes trade information given ids in input column
         allows for keeping additional column values as they were at the start of the trade
         PROTOTYPE. NEEDS MORE WORK AND MAY NOT BE THE DIRECTION I GO"""
@@ -45,6 +51,7 @@ class Trades:
         self.trade_id_column = trade_id_column
         self.enter_column = enter_column
         self.exit_column = exit_column
+
 
 
     def summarize_strategy(self) -> pl.DataFrame | pl.LazyFrame:
