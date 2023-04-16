@@ -28,6 +28,7 @@ def strategy(df: pl.DataFrame | pl.LazyFrame, lookback: timedelta, offset_percen
     df = df.with_columns((pl.col("Low") * factor).rolling_min(
         lookback, by=pi.indicators.DATE_COLUMN).over(
             pi.indicators.SYMBOL_COLUMN).alias(weeks_min))
+    
     filter_datetime = df[pi.indicators.DATE_COLUMN].min() + lookback
     df = df.filter(pl.col(pi.indicators.DATE_COLUMN) > filter_datetime) #this filters out data that doesn't have the full lookback
 

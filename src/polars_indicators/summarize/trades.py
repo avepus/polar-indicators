@@ -69,10 +69,11 @@ class Trades:
                 )
         
         return self.df.select(
-            pl.col(self.percent_change).sum(),
-            (pl.col(self.percent_change) > 0).sum().alias("Winngers"),
+            pl.col(self.percent_change).sum().alias("Gain/Loss%Sum"),
+            (pl.col(self.percent_change) > 0).sum().alias("Winners"),
             (pl.col(self.percent_change) < 0).sum().alias("Losers"),
             pl.col(pi.indicators.SYMBOL_COLUMN).count().alias("Trades"),
+            ((pl.col(self.percent_change) > 0).sum() / (pl.col(pi.indicators.SYMBOL_COLUMN).count())).alias("Win_Ratio"),
             pl.col(self.percent_change).mean().alias("Average_Gain/Loss%"),
             pl.col(self.length).mean().alias("Average_Length"),
             pl.col(self.highest_percent).max(),
