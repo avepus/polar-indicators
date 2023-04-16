@@ -10,7 +10,7 @@ import unittest
 from datetime import datetime
 from polars import testing
 import polars as pl
-import polars_indicators as pi
+from polars_indicators import indicators
 
 COLUMNS = ['Date',
            'Open',
@@ -69,13 +69,36 @@ class TestIndicators(unittest.TestCase):
         sma is built in for polars so it is not tested here"""
         #test single normal case
         args = {'days': 5}
-        self.validate_indicator(pi.simple_moving_average, args)
+        self.validate_indicator(indicators.simple_moving_average, args)
+
+
+    def test_validate_slope_up(self):
+        args = {'column': 'Close'}
+        self.validate_indicator(indicators.slope_up, args)
+
+    
+    def test_slope_up(self):
+        multi = get_multi_symbol_test_df()
+        index_name = "index"
+        column = "test"
+        values = [1.0, 2, 4, 3, 4, 4, 5, 3, 2, 1]
+
+        df = multi.with_row_count(index_name).filter(pl.col(index_name) < 10)
+                
+        df = df.insert_at_idx(-1, pl.Series(column, values))
+
+        ret = indicators.slope_up(df, column)
+
+        result = ret.df[ret.column].to_list()
+        expected = [None, True, True, False, True, False, True, False, False, False]
+
+        self.assertEqual(result, expected)
 
 
     def test_validate_crossover_up(self):
         args = {'column1': 'Close',
                 'column2': 'Open'}
-        self.validate_indicator(pi.crossover_up, args)
+        self.validate_indicator(indicators.crossover_up, args)
 
     
     def test_crossover_up(self):
@@ -93,23 +116,23 @@ class TestIndicators(unittest.TestCase):
                 .alias(column_name))
         
 
-        ret = pi.crossover_up(df, column_name, index_name)
+        ret = indicators.crossover_up(df, column_name, index_name)
         result = ret.df.filter(pl.col(ret.column) == True)[index_name].to_list()
         expected = [4]
 
         self.assertEqual(result, expected)
 
         #test multisymbols. A crossover should not be logged from end of one sybmol to start of another
-        first_symbol = multi[pi.SYMBOL_COLUMN].to_list()[0]
+        first_symbol = multi[indicators.SYMBOL_COLUMN].to_list()[0]
         df = multi.with_row_count(name=index_name).with_columns( 
                 pl.when(
-                    pl.col(pi.SYMBOL_COLUMN) == first_symbol) \
+                    pl.col(indicators.SYMBOL_COLUMN) == first_symbol) \
                     .then(pl.col(index_name) - 1) \
                 .otherwise(
                     pl.col(index_name) + 1) \
                 .alias(column_name))
         
-        ret = pi.crossover_up(df, column_name, index_name)
+        ret = indicators.crossover_up(df, column_name, index_name)
 
         crossovers = ret.df.filter(pl.col(ret.column) == True)
 
@@ -119,7 +142,7 @@ class TestIndicators(unittest.TestCase):
     def test_validate_crossover_down(self):
         args = {'column1': 'Close',
                 'column2': 'Open'}
-        self.validate_indicator(pi.crossover_down, args)
+        self.validate_indicator(indicators.crossover_down, args)
         
     def test_crossover_down(self):
         multi = get_multi_symbol_test_df()
@@ -136,23 +159,23 @@ class TestIndicators(unittest.TestCase):
                 .alias(column_name))
         
 
-        ret = pi.crossover_down(df, column_name, index_name)
+        ret = indicators.crossover_down(df, column_name, index_name)
         result = ret.df.filter(pl.col(ret.column) == True)[index_name].to_list()
         expected = [3]
 
         self.assertEqual(result, expected)
 
         #test multisymbols. A crossover should not be logged from end of one sybmol to start of another
-        first_symbol = multi[pi.SYMBOL_COLUMN].to_list()[0]
+        first_symbol = multi[indicators.SYMBOL_COLUMN].to_list()[0]
         df = multi.with_row_count(name=index_name).with_columns( 
                 pl.when(
-                    pl.col(pi.SYMBOL_COLUMN) == first_symbol) \
+                    pl.col(indicators.SYMBOL_COLUMN) == first_symbol) \
                     .then(pl.col(index_name) + 1) \
                 .otherwise(
                     pl.col(index_name) - 1) \
                 .alias(column_name))
         
-        ret = pi.crossover_down(df, column_name, index_name)
+        ret = indicators.crossover_down(df, column_name, index_name)
 
         crossovers = ret.df.filter(pl.col(ret.column) == True)
 
@@ -161,7 +184,7 @@ class TestIndicators(unittest.TestCase):
     def test_validate_crossover(self):
         args = {'column1': 'Close',
                 'column2': 'Open'}
-        self.validate_indicator(pi.crossover, args)
+        self.validate_indicator(indicators.crossover, args)
 
     def test_crossover(self):
         multi = get_multi_symbol_test_df()
@@ -177,23 +200,23 @@ class TestIndicators(unittest.TestCase):
                     pl.col(index_name) + 1) \
                 .alias(column_name))
         
-        ret = pi.crossover(df, column_name, index_name)
+        ret = indicators.crossover(df, column_name, index_name)
         result = ret.df.filter(pl.col(ret.column) == True)[index_name].to_list()
         expected = [3, 4]
 
         self.assertEqual(result, expected)
 
         #test multisymbols. A crossover should not be logged from end of one sybmol to start of another
-        first_symbol = multi[pi.SYMBOL_COLUMN].to_list()[0]
+        first_symbol = multi[indicators.SYMBOL_COLUMN].to_list()[0]
         df = multi.with_row_count(name=index_name).with_columns( 
                 pl.when(
-                    pl.col(pi.SYMBOL_COLUMN) == first_symbol) \
+                    pl.col(indicators.SYMBOL_COLUMN) == first_symbol) \
                     .then(pl.col(index_name) + 1) \
                 .otherwise(
                     pl.col(index_name) - 1) \
                 .alias(column_name))
         
-        ret = pi.crossover(df, column_name, index_name)
+        ret = indicators.crossover(df, column_name, index_name)
 
         crossovers = ret.df.filter(pl.col(ret.column) == True)
 
@@ -202,7 +225,7 @@ class TestIndicators(unittest.TestCase):
 
     def test_trailing_stop_validate(self):
         args = {"bars": 2}
-        self.validate_indicator(pi.trailing_stop, args)
+        self.validate_indicator(indicators.trailing_stop, args)
 
     def test_trailing_stop(self):
         multi = get_multi_symbol_test_df()
@@ -212,12 +235,12 @@ class TestIndicators(unittest.TestCase):
         low_values =  [0, 1, 2, 2, 4, 5, 3, 1, 8, 9, 10, 11, 9]
         open_values = [3, 4, 5, 6, 7, 8, 9, 1, 10, 11, 12, 13, 14]
 
-        df = multi.slice(0, len(low_values)).select(pl.exclude(pi.LOW_COLUMN, pi.OPEN_COLUMN))
+        df = multi.slice(0, len(low_values)).select(pl.exclude(indicators.LOW_COLUMN, indicators.OPEN_COLUMN))
 
-        df = df.insert_at_idx(-1, pl.Series(pi.LOW_COLUMN, low_values, dtype=pl.Float64))
-        df = df.insert_at_idx(-1, pl.Series(pi.OPEN_COLUMN, open_values, dtype=pl.Float64))
+        df = df.insert_at_idx(-1, pl.Series(indicators.LOW_COLUMN, low_values, dtype=pl.Float64))
+        df = df.insert_at_idx(-1, pl.Series(indicators.OPEN_COLUMN, open_values, dtype=pl.Float64))
         
-        ret = pi.trailing_stop(df, bars)
+        ret = indicators.trailing_stop(df, bars)
 
         #validate the correct indicies got values
         result = ret.df.with_row_count(index_name).filter(pl.col(ret.column).is_not_null())[index_name].to_list()
@@ -233,7 +256,7 @@ class TestIndicators(unittest.TestCase):
     def test_create_trade_ids_validate(self):
         args = {"enter_column": "Bool",
                 "exit_column": "Bool"}
-        self.validate_indicator(pi.create_trade_ids, args)
+        self.validate_indicator(indicators.create_trade_ids, args)
 
     def test_create_trade_ids(self):
         multi = get_multi_symbol_test_df()
@@ -248,7 +271,7 @@ class TestIndicators(unittest.TestCase):
         df = df.insert_at_idx(-1, pl.Series(enter_column, enter_values))
         df = df.insert_at_idx(-1, pl.Series(exit_column, exit_values))
 
-        ret = pi.create_trade_ids(df, enter_column, exit_column)
+        ret = indicators.create_trade_ids(df, enter_column, exit_column)
 
         result = ret.df[ret.column].to_list()
         expected = [None, 1, 1, 1, 2, None, None, 3, 3, 3]
@@ -257,13 +280,13 @@ class TestIndicators(unittest.TestCase):
 
     def test_validate_targeted_value(self):
         args = {"targets": "High"}
-        self.validate_indicator(pi.targeted_value, args)
+        self.validate_indicator(indicators.targeted_value, args)
 
 
     def test_validate_limit_entries(self):
         args = {"bars": 5,
                 "entries": "High"}
-        self.validate_indicator(pi.limit_entries, args) 
+        self.validate_indicator(indicators.limit_entries, args) 
 
 
     def test_limit_entries(self):
@@ -277,10 +300,14 @@ class TestIndicators(unittest.TestCase):
                 
         df = multi.with_row_count(index_name).filter(pl.col(index_name) < 10)
 
-        expected = df.clone().insert_at_idx(-1, pl.Series(enter_column, expected_values))
 
-        df = df.clone().insert_at_idx(-1, pl.Series(enter_column, enter_values))
-        result = pi.limit_entries(df, bars).df
+        df = df.insert_at_idx(len(df.columns), pl.Series(enter_column, enter_values))
+
+        limit = indicators.limit_entries(df, bars, enter_column)
+
+        result = limit.df
+
+        expected = df.clone().insert_at_idx(len(df.columns), pl.Series(limit.column, expected_values))
 
         testing.assert_frame_equal(result, expected)
 
@@ -308,7 +335,7 @@ class TestIndicators(unittest.TestCase):
                 
     #     df = df.filter(pl.col(index_name) < 10)
 
-    #     ret = pi.create_trade_ids(df, column_name)
+    #     ret = indicators.create_trade_ids(df, column_name)
 
     #     result = ret.df[ret.column].to_list()
     #     expected = [None, 0, 0, 0, 1, 2, 2, 2, 3, 3]

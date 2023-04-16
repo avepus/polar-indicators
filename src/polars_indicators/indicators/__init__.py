@@ -36,6 +36,17 @@ def simple_moving_average(df: pl.DataFrame | pl.LazyFrame, days: int, column: st
         df = df.with_columns(pl.col(column).rolling_mean(days).alias(column_name))
     return IndicatorResult(df, column_name)
 
+def slope_up(df: pl.DataFrame | pl.LazyFrame, column: str='Close') -> IndicatorResult:
+    """indicates if a column's current value is more than it's previous value"""
+    column_name = column + '_slope_up'
+
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+    
+    df = df.with_columns((pl.col(column) > pl.col(column).shift()).alias(column_name))
+    return IndicatorResult(df, column_name)
+
+
 def crossover_up(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str) -> IndicatorResult:
     """Adds column indicator crossover made by column1 over column2 in the upward direction
     This does not handle situations where the values are the same.
