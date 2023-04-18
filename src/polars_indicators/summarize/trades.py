@@ -56,19 +56,7 @@ class Trades:
 
     def summarize_strategy(self, group_column: str = None) -> pl.DataFrame | pl.LazyFrame:
         """Summarizes strategy by key metrics"""
-        if group_column:
-            return self.df.groupby(group_column).agg(
-                pl.col(self.percent_change).sum(),
-                (pl.col(self.percent_change) > 0).sum().alias("Winngers"),
-                (pl.col(self.percent_change) < 0).sum().alias("Losers"),
-                pl.col(pi.indicators.SYMBOL_COLUMN).count().alias("Trades"),
-                pl.col(self.percent_change).mean().alias("Average_Gain/Loss%"),
-                pl.col(self.length).mean().alias("Average_Length"),
-                pl.col(self.highest_percent).max(),
-                pl.col(self.lowest_percent).min()
-                )
-        
-        return self.df.select(
+        columns = [
             pl.col(self.percent_change).sum().alias("Gain/Loss%Sum"),
             (pl.col(self.percent_change) > 0).sum().alias("Winners"),
             (pl.col(self.percent_change) < 0).sum().alias("Losers"),
@@ -76,8 +64,18 @@ class Trades:
             ((pl.col(self.percent_change) > 0).sum() / (pl.col(pi.indicators.SYMBOL_COLUMN).count())).alias("Win_Ratio"),
             pl.col(self.percent_change).mean().alias("Average_Gain/Loss%"),
             pl.col(self.length).mean().alias("Average_Length"),
+            (pl.when(pl.col(self.percent_change) > 0).then(pl.col(self.percent_change))).max().alias("highest_win"),
             pl.col(self.highest_percent).max(),
+            (pl.when(pl.col(self.percent_change) < 0).then(pl.col(self.percent_change))).min().alias("lowest_loss"),
             pl.col(self.lowest_percent).min()
+            ]
+        if group_column:
+            return self.df.groupby(group_column).agg(
+                columns
+                )
+        
+        return self.df.select(columns
+            
             )
 
 
