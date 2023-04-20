@@ -47,6 +47,18 @@ def slope_up(df: pl.DataFrame | pl.LazyFrame, column: str='Close') -> IndicatorR
     return IndicatorResult(df, column_name)
 
 
+def rolling_min_with_offset(df: pl.DataFrame | pl.LazyFrame, column: str='Low', bars: int=250, offset: int=5) -> IndicatorResult:
+    """calculates rolling min but skipping the last 'offset' number of bars"""
+    column_name = f"{column}_rolling_min_skip_{bars}"
+
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+    
+    df = df.with_columns(pl.col(column).rolling_min(bars-offset).shift(offset + 1).alias(column_name))    
+
+    return IndicatorResult(df, column_name)
+
+
 def crossover_up(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str) -> IndicatorResult:
     """Adds column indicator crossover made by column1 over column2 in the upward direction
     This does not handle situations where the values are the same.
@@ -192,7 +204,6 @@ def entry_percentage_stop(df: pl.DataFrame | pl.LazyFrame, percentage: float, en
     
     return IndicatorResult(df, column_name)
 
- 
 
 def targeted_value(df: pl.DataFrame | pl.LazyFrame, targets: str) -> IndicatorResult:
     """Given a column with target values, adds column with those values if they were hit

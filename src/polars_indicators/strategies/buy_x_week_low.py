@@ -4,7 +4,7 @@ import polars_indicators as pi
 from polars_indicators.strategies.strategy_result import StrategyResult
 
 
-def strategy(df: pl.DataFrame | pl.LazyFrame, lookback: timedelta, offset_percentage: int, entry_stop_percentage: int, trailing_stop_bars: int, min_price: float) -> StrategyResult:
+def strategy(df: pl.DataFrame | pl.LazyFrame, lookback_bars: int, offset_bars: int, offset_percentage: int, entry_stop_percentage: int, trailing_stop_bars: int, min_price: float) -> StrategyResult:
     """Generates trades on input df
 
     This will filter out all data from before we have a full min from the lookback period
@@ -12,7 +12,8 @@ def strategy(df: pl.DataFrame | pl.LazyFrame, lookback: timedelta, offset_percen
 
     Args:
         df: DataFrame instance with OHLCV columns
-        lookback: how long the rolling min is
+        lookback_bars: how long the rolling min is
+        offset_bars: how many bars to offset the min by
         offset_percentage: how much to offset the limit order from the min
         entry_stop_percentage: how much to offset the entry bar stop-loss value from
           the entry limit order price
@@ -27,21 +28,24 @@ def strategy(df: pl.DataFrame | pl.LazyFrame, lookback: timedelta, offset_percen
 
     df = df.lazy()
 
-    weeks_min = f"{lookback}_week_min"
-    df = df.with_columns((pl.col("Low") * factor).rolling_min(
-        lookback, by=pi.indicators.DATE_COLUMN).over(
-            pi.indicators.SYMBOL_COLUMN).alias(weeks_min))
-    
+    roll_min = pi.indicators.rolling_min_with_offset(df, column=pi.indicators.LOW_COLUMN, bars=lookback_bars, offset=offset_bars)
+
+    df = roll_min.df
+
     #min_price filter
-    df = df.with_columns(pl.when(pl.col(weeks_min) >= min_price).then(pl.col(weeks_min)))
+    df = df.with_columns(pl.when(pl.col(roll_min.column) >= min_price).then(pl.col(roll_min.column)))
+
+    #filter when bar in offset range was below minimum
+    df = df.with_columns(pl.when(pl.col(roll_min.column) < pl.col(pi.indicators.LOW_COLUMN).rolling_min(offset_bars).shift().over(pi.indicators.SYMBOL_COLUMN)).then(
+        pl.col(roll_min.column)))
     
     #filter data that doesn't have the full lookback
-    df = df.collect() #we can't subscript a lazyframe on the line below so we collect first here
-    filter_datetime = df[pi.indicators.DATE_COLUMN].min() + lookback
-    df = df.lazy() 
-    df = df.filter(pl.col(pi.indicators.DATE_COLUMN) > filter_datetime)
+    df = df.filter(pl.col(roll_min.column).is_not_null())
 
-    target = pi.indicators.targeted_value(df, weeks_min)
+    #take the factor into account
+    df = df.with_columns(pl.col(roll_min.column) * factor)
+
+    target = pi.indicators.targeted_value(df, roll_min.column)
     enter_column = target.column
     df = target.df
     
