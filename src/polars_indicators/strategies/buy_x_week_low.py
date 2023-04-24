@@ -38,9 +38,6 @@ def strategy(df: pl.DataFrame | pl.LazyFrame, lookback_bars: int, offset_bars: i
     #filter when bar in offset range was below minimum
     df = df.with_columns(pl.when(pl.col(roll_min.column) < pl.col(pi.indicators.LOW_COLUMN).rolling_min(offset_bars).shift().over(pi.indicators.SYMBOL_COLUMN)).then(
         pl.col(roll_min.column)))
-    
-    #filter data that doesn't have the full lookback
-    df = df.filter(pl.col(roll_min.column).is_not_null())
 
     #take the factor into account
     df = df.with_columns(pl.col(roll_min.column) * factor)
@@ -67,6 +64,7 @@ def strategy(df: pl.DataFrame | pl.LazyFrame, lookback_bars: int, offset_bars: i
 
     df = ids.df.collect()
 
-    return StrategyResult(df, enter_column, exit_column, ids.column )
+
+    return StrategyResult(df, enter_column, exit_column, ids.column)
     
         
