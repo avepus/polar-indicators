@@ -229,16 +229,13 @@ class TestIndicators(unittest.TestCase):
 
     def test_rolling_min_with_offset(self):
         multi = get_multi_symbol_test_df()
-        index_name = 'my_index'
         column = 'test'
 
-        values =   [1,    2,    3,    1,    5, 2, 6, 8, 9, 9, 8]
-        expected = [None, None, None, None, 1, 2, 1, 1, 2, 2, 6]
+        values =   [1,    2,    3,    1,    5, 2, 6, 8, 9, 9] * 2
+        expected = [None, None, None, None, 1, 2, 1, 1, 2, 2] * 2
 
 
-        df = multi.slice(0, len(values))
-
-        df = df.insert_at_idx(-1, pl.Series(column, values, dtype=pl.Float64))
+        df = multi.insert_at_idx(-1, pl.Series(column, values, dtype=pl.Float64))
         
         ret = indicators.rolling_min_with_offset(df, column=column, bars=4, offset=2)
 

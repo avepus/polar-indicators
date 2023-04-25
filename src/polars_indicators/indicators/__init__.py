@@ -54,7 +54,10 @@ def rolling_min_with_offset(df: pl.DataFrame | pl.LazyFrame, column: str='Low', 
     if column_name in df.columns:
         return IndicatorResult(df, column_name)
     
-    df = df.with_columns(pl.col(column).rolling_min(bars-offset).shift(offset + 1).alias(column_name))    
+    if SYMBOL_COLUMN in df.columns:
+        df = df.with_columns(pl.col(column).rolling_min(bars-offset).shift(offset + 1).over(SYMBOL_COLUMN).alias(column_name))
+    else:
+        df = df.with_columns(pl.col(column).rolling_min(bars-offset).shift(offset + 1).alias(column_name))
 
     return IndicatorResult(df, column_name)
 
