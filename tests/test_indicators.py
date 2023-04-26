@@ -273,6 +273,38 @@ class TestIndicators(unittest.TestCase):
         result = ret.df.filter(pl.col(ret.column).is_not_null())[ret.column].to_list()
         expected = [4, 1, 10]
         self.assertEqual(result, expected)
+
+
+    def test_entry_percentage_stop_validate(self):
+        args = {"percentage": 1,
+                "entry_column": indicators.LOW_COLUMN}
+        self.validate_indicator(indicators.entry_percentage_stop, args)
+
+    def test_entry_percentage_stop(self):
+        multi = get_multi_symbol_test_df()
+        enter_column = "enter"
+        percentage = -10
+
+        low_values =   [0, 1, 2, 2,    4, 5, 3, 1, 8,  9 , 10, 11, 9]
+        enter_values = [5, 2, 2, None, 2, 2, 1, 1, 9,  9,  12, None, None] 
+        high_values =  [3, 4, 5, 6,    7, 8, 9, 1, 10, 11, 12, 13, 14]
+        expected =     [None, 1.8, None, None, None, None, None, None, 8.1, None, 10.8, None, None]
+
+        df = multi.slice(0, len(low_values)).select(pl.exclude(indicators.LOW_COLUMN, indicators.HIGH_COLUMN))
+
+        df = df.insert_at_idx(-1, pl.Series(indicators.LOW_COLUMN, low_values, dtype=pl.Float64))
+        df = df.insert_at_idx(-1, pl.Series(indicators.HIGH_COLUMN, high_values, dtype=pl.Float64))
+        df = df.insert_at_idx(-1, pl.Series(enter_column, enter_values, dtype=pl.Float64))
+
+        
+        ret = indicators.entry_percentage_stop(df, percentage, enter_column)
+
+
+
+        #validate the values are correct
+        result = ret.df[ret.column].to_list()
+        self.assertEqual(result, expected)
+        
         
 
     def test_create_trade_ids_validate(self):

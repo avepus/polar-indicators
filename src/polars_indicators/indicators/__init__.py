@@ -49,7 +49,7 @@ def slope_up(df: pl.DataFrame | pl.LazyFrame, column: str='Close') -> IndicatorR
 
 def rolling_min_with_offset(df: pl.DataFrame | pl.LazyFrame, column: str='Low', bars: int=250, offset: int=5) -> IndicatorResult:
     """calculates rolling min but skipping the last 'offset' number of bars"""
-    column_name = f"{column}_rolling_min_skip_{bars}"
+    column_name = f"{column}_{bars}min_{offset}offset"
 
     if column_name in df.columns:
         return IndicatorResult(df, column_name)
