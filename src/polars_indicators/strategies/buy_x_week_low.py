@@ -1,4 +1,3 @@
-from datetime import timedelta
 import polars as pl
 import polars_indicators as pi
 from polars_indicators.strategies.strategy_result import StrategyResult
@@ -24,8 +23,6 @@ def strategy(df: pl.DataFrame | pl.LazyFrame, lookback_bars: int, offset_bars: i
         A StategyResult representing the result of running the strategy
         on the input data
     """
-    factor = (100 + offset_percentage) / 100
-
     df = df.lazy()
 
     roll_min = pi.indicators.rolling_min_with_offset(df, column=pi.indicators.LOW_COLUMN, bars=lookback_bars, offset=offset_bars)
@@ -39,7 +36,8 @@ def strategy(df: pl.DataFrame | pl.LazyFrame, lookback_bars: int, offset_bars: i
     df = df.with_columns(pl.when(pl.col(roll_min.column) < pl.col(pi.indicators.LOW_COLUMN).rolling_min(offset_bars).shift().over(pi.indicators.SYMBOL_COLUMN)).then(
         pl.col(roll_min.column)))
 
-    #take the factor into account
+    #take the offset_percentage into account
+    factor = (100 + offset_percentage) / 100
     df = df.with_columns(pl.col(roll_min.column) * factor)
 
     target = pi.indicators.targeted_value(df, roll_min.column)
