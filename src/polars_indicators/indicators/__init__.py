@@ -208,6 +208,15 @@ def entry_percentage_stop(df: pl.DataFrame | pl.LazyFrame, percentage: float, en
     return IndicatorResult(df, column_name)
 
 
+def close_above_open(df: pl.DataFrame | pl.LazyFrame, close=CLOSE_COLUMN, open=OPEN_COLUMN) -> IndicatorResult:
+    """adds bool column indicating if close was greater than open"""
+    column_name = f"{close}_above{open}"
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+    df = df.with_columns((pl.col(close) > pl.col(open)).alias(column_name))
+    return IndicatorResult(df, column_name)
+
+
 def targeted_value(df: pl.DataFrame | pl.LazyFrame, targets: str) -> IndicatorResult:
     """Given a column with target values, adds column with those values if they were hit
     useful for mocking limit orders"""
