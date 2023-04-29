@@ -217,6 +217,18 @@ def close_above_open(df: pl.DataFrame | pl.LazyFrame, close=CLOSE_COLUMN, open=O
     return IndicatorResult(df, column_name)
 
 
+def fluctuation_percentage(df: pl.DataFrame | pl.LazyFrame, column1=LOW_COLUMN, column2=HIGH_COLUMN) -> IndicatorResult:
+    """adds a column for the percentage movement between columns
+    this is calculated using the following formula
+    (column2 - column1) / column1 * 100"""
+    column_name = f"{column1}/{column2}_fluctuation%"
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+    
+    df = df.with_columns(((pl.col(column2) - pl.col(column1)) / pl.col(column1) * 100).alias(column_name))
+    return IndicatorResult(df, column_name)
+
+
 def targeted_value(df: pl.DataFrame | pl.LazyFrame, targets: str) -> IndicatorResult:
     """Given a column with target values, adds column with those values if they were hit
     useful for mocking limit orders"""

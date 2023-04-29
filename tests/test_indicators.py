@@ -245,6 +245,30 @@ class TestIndicators(unittest.TestCase):
         self.assertEqual(result, expected)
 
 
+    def test_validate_fluctuation_percentage(self):
+        args = {}
+        self.validate_indicator(indicators.fluctuation_percentage, args)
+
+    def test_fluctuation_percentage(self):
+        multi = get_multi_symbol_test_df()
+        column1 = 'test1'
+        column2 = 'test2'
+
+        values1 =  [1, 2, 3  , 1  , 5, 2, 6, 8, 9, 9] * 2
+        values2 =  [1, 2, 4  , 1.5, 5, 2, 6, 8, 9, 8] * 2
+        expected = [0, 0, 1/3, 0.5, 0, 0, 0, 0, 0, -1/9] * 2
+        expected = [x * 100 for x in expected]
+
+
+        df = multi.insert_at_idx(-1, pl.Series(column1, values1, dtype=pl.Float64))
+        df = multi.insert_at_idx(-1, pl.Series(column2, values2, dtype=pl.Float64))
+        
+        ret = indicators.fluctuation_percentage(df, column1, column2)
+
+        result = ret.df[ret.column].to_list()
+        self.assertEqual(result, expected)
+
+
     def test_trailing_stop_validate(self):
         args = {"bars": 2}
         self.validate_indicator(indicators.trailing_stop, args)
