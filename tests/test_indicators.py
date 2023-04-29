@@ -269,6 +269,29 @@ class TestIndicators(unittest.TestCase):
         self.assertEqual(result, expected)
 
 
+    
+    def test_validate_group_by_amount(self):
+        args = {"column": "Close",
+                "amounts": [1,2,3]}
+        self.validate_indicator(indicators.group_by_amount, args)
+
+    def test_group_by_amount(self):
+        multi = get_multi_symbol_test_df()
+        column = 'test'
+
+        values =       [1, 2, 3, 1, 5, 2, 6, 8, 9, 9] * 2
+        group_values = [2, 4, 8.5]
+        expected =     ["<2", "2-3.99", "2-3.99", "<2", "4-8.49", "2-3.99", "4-8.49", "4-8.49", ">8.5", ">8.5"] * 2
+
+
+        df = multi.insert_at_idx(-1, pl.Series(column, values, dtype=pl.Float64))
+        
+        ret = indicators.group_by_amount(df, column, group_values)
+
+        result = ret.df[ret.column].to_list()
+        self.assertEqual(result, expected)
+
+
     def test_trailing_stop_validate(self):
         args = {"bars": 2}
         self.validate_indicator(indicators.trailing_stop, args)

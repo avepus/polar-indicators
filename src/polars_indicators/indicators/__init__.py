@@ -281,6 +281,28 @@ def limit_entries(df: pl.DataFrame | pl.LazyFrame, bars: int, entries: str) -> I
     return IndicatorResult(df, column_name)
 
 
+def group_by_amount(df: pl.DataFrame | pl.LazyFrame, column: str, amounts: list[float], smallest_unit: float=0.01) -> IndicatorResult:
+    """groups values into ranges based on input amounts
+    amounts must be sorted lowest to highest"""
+    column_name = f"{column}_grouped_values"
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+    
+    cols = []
+    first_amt = amounts[0]
+    cols.append(pl.when(pl.col(column) < first_amt).then(pl.lit("<" + str(first_amt))))
+    for i in range(1, len(amounts)):
+        last_amount = amounts[i-1]
+        amount = amounts[i]
+        display_amount = str(amount-smallest_unit)
+        cols.append(pl.when(pl.col(column) < amount).then(pl.lit(str(last_amount) + "-" + display_amount)))
+    last_amt = amounts[-1]
+    cols.append(pl.lit(">" + str(last_amt)))
+    df =  df.with_columns(pl.coalesce(cols).alias(column_name))
+
+    return IndicatorResult(df, column_name)
+
+
 def create_trade_ids_old(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_column: str) -> IndicatorResult:
     """increments count for each true value in input column
     intended to be used to create IDs for trades
