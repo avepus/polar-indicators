@@ -27,7 +27,7 @@ class IndicatorResult:
 
 def simple_moving_average(df: pl.DataFrame | pl.LazyFrame, days: int, column: str='Close') -> IndicatorResult:
     """returns dataframe with simple moving average added as a column"""
-    column_name = 'SMA' + str(days)
+    column_name = f"SMA{days}_{column}"
     if column_name in df.columns:
         pass
     elif SYMBOL_COLUMN in df.columns:
@@ -157,6 +157,32 @@ def crossover(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str) -> In
         df = lf.collect()
 
     return IndicatorResult(df, column_name)
+
+
+def relative_volume(df: pl.DataFrame | pl.LazyFrame, bars: int, column=VOLUMNE_COLUMN) -> IndicatorResult:
+    """calculates volume relative to average of last bars"""
+    column_name = f"{bars}_relative_volume%"
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+    
+    average_volume = simple_moving_average(df, bars, column)
+    df = average_volume.df
+
+    #need to shift average so current bar value is divsor of previous bars' average
+    sma_column = "temp"
+    if SYMBOL_COLUMN in df.columns:
+        df =  df.with_columns(pl.col(column).shift().rolling_mean(bars).over(SYMBOL_COLUMN).alias(sma_column))
+    else:
+        df = df.with_columns(pl.col(column).shift().rolling_mean(bars).alias(column_name))
+    
+    df = df.with_columns((
+            (pl.col(column) - pl.col(average_volume.column)) / pl.col(average_volume.column) * 100
+        ).alias(column_name))
+    
+    df = df.select(pl.exclude(average_volume.column))
+
+    return IndicatorResult(df, column_name)
+
 
 
 def trailing_stop(df: pl.DataFrame | pl.LazyFrame, bars: int) -> IndicatorResult:
