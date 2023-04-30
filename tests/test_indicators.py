@@ -268,6 +268,35 @@ class TestIndicators(unittest.TestCase):
         result = ret.df[ret.column].to_list()
         self.assertEqual(result, expected)
 
+    
+    def test_validate_relative_volume(self):
+        args = {"bars": 3}
+        self.validate_indicator(indicators.relative_volume, args)
+
+    def test_relative_volume(self):
+        multi = get_multi_symbol_test_df()
+
+        volume =  [1, 2, 3, 1, 5, 2, 6, 8, 9, 9]
+        expected = [None, None, None]
+        expected.extend([(volume[i] - (sum(volume[i-3:i])/3))/(sum(volume[i-3:i])/3)*100 for i in range(3,len(volume))])
+        expected = expected * 2
+        volume = volume * 2
+
+        df = multi.select(pl.exclude(indicators.VOLUMNE_COLUMN))
+
+
+        df = df.insert_at_idx(-1, pl.Series(indicators.VOLUMNE_COLUMN, volume, dtype=pl.Float64))
+        
+        ret = indicators.relative_volume(df, 3)
+
+        result = ret.df[ret.column].to_list()
+        #testing
+        # sma = indicators.simple_moving_average(df, 3, column=indicators.VOLUMNE_COLUMN)
+        # print(sma.df[sma.column])
+        # print(sma.df[indicators.SYMBOL_COLUMN])
+        # print(ret.df[indicators.VOLUMNE_COLUMN].to_list())
+        #end test
+        self.assertEqual(result, expected)
 
     
     def test_validate_group_by_amount(self):
