@@ -273,7 +273,7 @@ class TestIndicators(unittest.TestCase):
     def test_validate_group_by_amount(self):
         args = {"column": "Close",
                 "amounts": [1,2,3]}
-        self.validate_indicator(indicators.group_by_amount, args)
+        self.validate_indicator(indicators.group_by_amount_display, args)
 
     def test_group_by_amount(self):
         multi = get_multi_symbol_test_df()
@@ -286,7 +286,7 @@ class TestIndicators(unittest.TestCase):
 
         df = multi.insert_at_idx(-1, pl.Series(column, values, dtype=pl.Float64))
         
-        ret = indicators.group_by_amount(df, column, group_values)
+        ret = indicators.group_by_amount_display(df, column, group_values)
 
         result = ret.df[ret.column].to_list()
         self.assertEqual(result, expected)

@@ -283,8 +283,26 @@ def limit_entries(df: pl.DataFrame | pl.LazyFrame, bars: int, entries: str) -> I
 
 def group_by_amount(df: pl.DataFrame | pl.LazyFrame, column: str, amounts: list[float], smallest_unit: float=0.01) -> IndicatorResult:
     """groups values into ranges based on input amounts
+    the column this adds is a float column
     amounts must be sorted lowest to highest"""
     column_name = f"{column}_grouped_values"
+    if column_name in df.columns:
+        return IndicatorResult(df, column_name)
+    
+    cols = []
+    for i in range(len(amounts)):
+        amount = amounts[i]
+        cols.append(pl.when(pl.col(column) < amount).then(amount))
+    cols.append(amounts[-1] + smallest_unit)
+    df =  df.with_columns(pl.coalesce(cols).alias(column_name))
+
+    return IndicatorResult(df, column_name)
+
+def group_by_amount_display(df: pl.DataFrame | pl.LazyFrame, column: str, amounts: list[float], smallest_unit: float=0.01) -> IndicatorResult:
+    """groups values into ranges based on input amounts
+    the column this adds is formatted for display like 1-1.99, 2-2.99
+    amounts must be sorted lowest to highest"""
+    column_name = f"{column}_grouped_values_d"
     if column_name in df.columns:
         return IndicatorResult(df, column_name)
     
