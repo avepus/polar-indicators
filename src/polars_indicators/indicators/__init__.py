@@ -16,7 +16,7 @@ LOW_COLUMN = "Low"
 HIGH_COLUMN = "High"
 OPEN_COLUMN = "Open"
 CLOSE_COLUMN = "Close"
-VOLUMNE_COLUMN = "Volume"
+VOLUME_COLUMN = "Volume"
 
 @dataclass
 class IndicatorResult:
@@ -159,7 +159,7 @@ def crossover(df: pl.DataFrame | pl.LazyFrame, column1: str, column2: str) -> In
     return IndicatorResult(df, column_name)
 
 
-def relative_volume(df: pl.DataFrame | pl.LazyFrame, bars: int, column=VOLUMNE_COLUMN) -> IndicatorResult:
+def relative_volume(df: pl.DataFrame | pl.LazyFrame, bars: int, column=VOLUME_COLUMN) -> IndicatorResult:
     """calculates volume relative to average of last bars"""
     column_name = f"{bars}_relative_volume%"
     if column_name in df.columns:

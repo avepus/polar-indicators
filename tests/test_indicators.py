@@ -282,19 +282,19 @@ class TestIndicators(unittest.TestCase):
         expected = expected * 2
         volume = volume * 2
 
-        df = multi.select(pl.exclude(indicators.VOLUMNE_COLUMN))
+        df = multi.select(pl.exclude(indicators.VOLUME_COLUMN))
 
 
-        df = df.insert_at_idx(-1, pl.Series(indicators.VOLUMNE_COLUMN, volume, dtype=pl.Float64))
+        df = df.insert_at_idx(-1, pl.Series(indicators.VOLUME_COLUMN, volume, dtype=pl.Float64))
         
         ret = indicators.relative_volume(df, 3)
 
         result = ret.df[ret.column].to_list()
         #testing
-        # sma = indicators.simple_moving_average(df, 3, column=indicators.VOLUMNE_COLUMN)
+        # sma = indicators.simple_moving_average(df, 3, column=indicators.VOLUME_COLUMN)
         # print(sma.df[sma.column])
         # print(sma.df[indicators.SYMBOL_COLUMN])
-        # print(ret.df[indicators.VOLUMNE_COLUMN].to_list())
+        # print(ret.df[indicators.VOLUME_COLUMN].to_list())
         #end test
         self.assertEqual(result, expected)
 
