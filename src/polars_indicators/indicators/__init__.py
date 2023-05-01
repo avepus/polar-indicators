@@ -165,21 +165,19 @@ def relative_volume(df: pl.DataFrame | pl.LazyFrame, bars: int, column=VOLUMNE_C
     if column_name in df.columns:
         return IndicatorResult(df, column_name)
     
-    average_volume = simple_moving_average(df, bars, column)
-    df = average_volume.df
 
     #need to shift average so current bar value is divsor of previous bars' average
     sma_column = "temp"
     if SYMBOL_COLUMN in df.columns:
         df =  df.with_columns(pl.col(column).shift().rolling_mean(bars).over(SYMBOL_COLUMN).alias(sma_column))
     else:
-        df = df.with_columns(pl.col(column).shift().rolling_mean(bars).alias(column_name))
+        df = df.with_columns(pl.col(column).shift().rolling_mean(bars).alias(sma_column))
     
     df = df.with_columns((
-            (pl.col(column) - pl.col(average_volume.column)) / pl.col(average_volume.column) * 100
+            (pl.col(column) - pl.col(sma_column)) / pl.col(sma_column) * 100
         ).alias(column_name))
     
-    df = df.select(pl.exclude(average_volume.column))
+    df = df.select(pl.exclude(sma_column))
 
     return IndicatorResult(df, column_name)
 
