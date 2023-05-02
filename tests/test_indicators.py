@@ -275,10 +275,11 @@ class TestIndicators(unittest.TestCase):
 
     def test_relative_volume(self):
         multi = get_multi_symbol_test_df()
+        bars = 3
 
         volume =  [1, 2, 3, 1, 5, 2, 6, 8, 9, 9]
-        expected = [None, None, None]
-        expected.extend([(volume[i] - (sum(volume[i-3:i])/3))/(sum(volume[i-3:i])/3)*100 for i in range(3,len(volume))])
+        expected = [None] * bars
+        expected.extend([volume[i] / (sum(volume[i - bars:i])/bars) *100 for i in range(bars, len(volume))])
         expected = expected * 2
         volume = volume * 2
 
@@ -287,7 +288,7 @@ class TestIndicators(unittest.TestCase):
 
         df = df.insert_at_idx(-1, pl.Series(indicators.VOLUME_COLUMN, volume, dtype=pl.Float64))
         
-        ret = indicators.relative_volume(df, 3)
+        ret = indicators.relative_volume(df, bars)
 
         result = ret.df[ret.column].to_list()
         #testing

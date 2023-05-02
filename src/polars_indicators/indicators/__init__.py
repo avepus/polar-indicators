@@ -174,11 +174,10 @@ def relative_volume(df: pl.DataFrame | pl.LazyFrame, bars: int, column=VOLUME_CO
         df = df.with_columns(pl.col(column).shift().rolling_mean(bars).alias(sma_column))
     
     df = df.with_columns((
-            (pl.col(column) - pl.col(sma_column)) / pl.col(sma_column) * 100
-        ).alias(column_name))
+            pl.col(column) / pl.col(sma_column) * 100
+        ).alias(column_name)) \
+        .select(pl.exclude(sma_column))
     
-    df = df.select(pl.exclude(sma_column))
-
     return IndicatorResult(df, column_name)
 
 
