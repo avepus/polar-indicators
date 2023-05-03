@@ -91,6 +91,8 @@ def fluctuation_and_relative_volume(df: pl.DataFrame | pl.LazyFrame, fluctuation
             ((pl.col(grouped_fluctation.column) == 20.01) & (pl.col(grouped_relative_volume.column) == 50))
         ).alias(additional_criteria))
     
+    #return df
+
     return strategy(df, lookback_bars, offset_bars, offset_percentage, entry_stop_percentage, trailing_stop_bars, min_price, additional_criteria)
     
         
