@@ -25,7 +25,7 @@ class Trades:
         exit_price = "Exit_Price"
         self.length = "Length"
         df = df.drop_nulls(trade_id_column).with_row_count(index_name).groupby(trade_id_column).agg(
-                [pl.when(pl.col(pi.indicators.DATE_COLUMN) == pl.col(pi.indicators.DATE_COLUMN).max()).then(pl.col(col)).min().alias(col) for col in additional_columns],
+                [pl.when(pl.col(pi.indicators.DATE_COLUMN) == pl.col(pi.indicators.DATE_COLUMN).min()).then(pl.col(col)).min().alias(col) for col in additional_columns],
                 pl.col(pi.indicators.SYMBOL_COLUMN).min().alias(pi.indicators.SYMBOL_COLUMN),
                 pl.col(pi.indicators.DATE_COLUMN).min().alias(start),
                 pl.col(pi.indicators.DATE_COLUMN).max().alias(end),
