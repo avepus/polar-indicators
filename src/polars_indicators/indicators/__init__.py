@@ -261,6 +261,9 @@ def targeted_value(df: pl.DataFrame | pl.LazyFrame, targets: str) -> IndicatorRe
     df = df.with_columns(pl.when(pl.col(targets).is_between(pl.col(LOW_COLUMN), pl.col(HIGH_COLUMN))).then(pl.col(targets)).alias(column_name))
     return IndicatorResult(df, column_name)
 
+def targeted_exit(df: pl.DataFrame | pl.LazyFrame, entries: str, exits: str) -> IndicatorResult:
+    pass
+
 
 def limit_entries(df: pl.DataFrame | pl.LazyFrame, bars: int, entries: str) -> IndicatorResult:
     """Forces a minimum number of bars between entries"""
@@ -343,22 +346,6 @@ def group_by_amount_display(df: pl.DataFrame | pl.LazyFrame, column: str, amount
 
     return IndicatorResult(df, column_name)
 
-
-def create_trade_ids_old(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_column: str) -> IndicatorResult:
-    """increments count for each true value in input column
-    intended to be used to create IDs for trades
-    DEAD CODE SHOULD PROBABLY BE REMOVED"""
-    column_name = f"{enter_column}/{exit_column}"
-    if column_name in df.columns:
-        return IndicatorResult(df, column_name)
-        
-    
-    exit_ids = 'exit_ids'
-    
-    df = df.with_columns(pl.col(exit_column).cumsum().shift(1).alias(exit_ids))
-
-    df = df.with_columns(pl.when(pl.col(enter_column).max().over(pl.col(exit_ids))).then(pl.col(exit_ids)).alias(column_name))
-    return IndicatorResult(df, column_name)
 
 def create_trade_ids(df: pl.DataFrame | pl.LazyFrame, enter_column: str, exit_column: str) -> IndicatorResult:
     """Adds a column that undiquely identifies each trade with an integer

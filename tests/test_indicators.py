@@ -352,6 +352,20 @@ class TestIndicators(unittest.TestCase):
         self.assertEqual(result, expected)
 
 
+    def test_targeted_exit_validate(self):
+        args = {"entries": indicators.CLOSE_COLUMN,
+                "exits": indicators.LOW_COLUMN}
+        self.validate_indicator(indicators.targeted_exit, args)
+
+    def test_targeted_exit(self):
+        multi = get_multi_symbol_test_df()
+        entry = "enter"
+        
+        low_values =   [0.5,  1,    2,    3,    4,    1,    6]
+        entry_values = [1,    None, 3,    None, 5,    None, None]
+        expect_vals =  [None, None, None, 4,    None, 2.5,  None]
+
+
     def test_entry_percentage_stop_validate(self):
         args = {"percentage": 1,
                 "entry_column": indicators.LOW_COLUMN}
@@ -516,8 +530,8 @@ def get_symbol_dataframe(symbol: str, dates: list[str]) -> pl.DataFrame:
     list_len = len(dates)
     dates = [datetime.strptime(date, '%Y-%m-%d').date() for date in dates]
     data = {    'Date':      dates,
-                'Open':      [float(i+1) for i in range(list_len)],
-                'High':      [float(i+1) for i in range(list_len)],
+                'Open':      [float(i+1) for  i in range(list_len)],
+                'High':      [float(i+2) for i in range(list_len)],
                 'Low':       [float(i+1) for i in range(list_len)],
                 'Close':     [float(i+1) for i in range(list_len)],
                 'Adj Close': [float(1) if i == 3 else float(i+1) for i in range(list_len)],
