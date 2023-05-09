@@ -77,3 +77,16 @@ class Trades:
         return self.df.select(columns
             
             )
+    
+
+def compare_strategies(trades: list[Trades], identifiers: list[str], group_column: str=None)  -> pl.DataFrame | pl.LazyFrame:
+    
+    ret_df = pl.DataFrame()
+    identifier = "Identifier"
+
+    for i in range(len(trades)):
+        df = trades[i].summarize_strategy(group_column)
+        df = df.with_columns(pl.lit(identifiers[i]).alias(identifier))
+        ret_df = pl.concat([ret_df, df])
+
+    return ret_df
