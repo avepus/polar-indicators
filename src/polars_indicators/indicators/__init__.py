@@ -16,6 +16,7 @@ LOW_COLUMN = "Low"
 HIGH_COLUMN = "High"
 OPEN_COLUMN = "Open"
 CLOSE_COLUMN = "Close"
+ADJ_CLOSE_COLUMN = "Adj Close"
 VOLUME_COLUMN = "Volume"
 
 @dataclass
